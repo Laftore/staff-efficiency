@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// Филиал = tenant (branch_id во всех таблицах для RLS).
+model Branch {
+  id        String     @id @default(cuid())
+  name      String
+  address   String?
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  employees Employee[]
+  profiles  Profile[]
+  shifts    Shift[]
+
+  @@map("branches")
+}
+
+/// Профиль Supabase Auth (id = auth.users.id).
+model Profile {
+  id          String    @id
+  email       String
+  displayName String    @map("display_name")
+  role        Role      @default(ADMIN)
+  /// tenant_id: null только у OWNER (доступ ко всем филиалам)
+  branchId    String?   @map("branch_id")
+  branch      Branch?   @relation(fields: [branchId], references: [id])
+  employee    Employee?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([branchId])
+  @@map("profiles")
+}
+
+/// Сотрудник смены (может быть привязан к Profile для входа в приложение).
+model Employee {
+  id        String   @id @default(cuid())
+  name      String
+  branchId  String   @map("branch_id")
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  profileId String?  @unique @map("profile_id")
+  profile   Profile? @relation(fields: [profileId], references: [id])
+  shifts    Shift[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([branchId])
+  @@map("employees")
+}
+
+enum Role {
+  OWNER
+  SENIOR_ADMIN
+  ADMIN
+}
+
+enum ShiftType {
+  DAY
+  NIGHT
+  EXTRA
+}
+
+model Shift {
+  id               String          @id @default(cuid())
+  branchId         String          @map("branch_id")
+  branch           Branch          @relation(fields: [branchId], references: [id])
+  employeeId       String          @map("employee_id")
+  employee         Employee        @relation(fields: [employeeId], references: [id])
+  date             DateTime        @db.Date
+  type             ShiftType
+  revenueTariff    Float           @default(0) @map("revenue_tariff")
+  revenueGoods     Float           @default(0) @map("revenue_goods")
+  bonusAdjustment  Float           @default(0) @map("bonus_adjustment")
+  bonus            Float           @default(0)
+  bonusManualReset Boolean         @default(false) @map("bonus_manual_reset")
+  inventory        InventoryItem[]
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  @@index([branchId])
+  @@index([employeeId])
+  @@index([date])
+  @@map("shifts")
+}
+
+model InventoryItem {
+  id            String   @id @default(cuid())
+  shiftId       String   @map("shift_id")
+  shift         Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  productName   String   @map("product_name")
+  previousStock Int      @default(0) @map("previous_stock")
+  delivered     Int      @default(0)
+  displayed     Int      @default(0)
+  fact          Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([shiftId])
+  @@map("inventory_items")
+}

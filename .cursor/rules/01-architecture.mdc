@@ -1,0 +1,15 @@
+---
+alwaysApply: false
+---
+# Architecture Rules (Next.js 15)
+
+- Server Components по умолчанию
+- Мутации только через Server Actions
+- Multi-tenant: каждый филиал = tenant_id + RLS в Supabase
+- Структура:
+  app/(dashboard)/
+  app/(auth)/
+  lib/prisma/
+  lib/smartshell/
+  components/dashboard/
+- PWA: manifest + service worker
