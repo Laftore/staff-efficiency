@@ -6,6 +6,10 @@ export interface InventoryLineInput {
   delivered: number;
   /** Выставлено на полку (Smartshell) */
   displayed: number;
+  /** Импортированное количество проданных товаров из Smartshell */
+  sold?: number;
+  /** Импортированная выручка по товарам из Smartshell */
+  revenueGoods?: number;
   /** Факт на полках — единственный ручной ввод */
   fact: number;
 }
@@ -15,6 +19,8 @@ export interface InventoryLineCalculated extends InventoryLineInput {
   difference: number;
   /** Продано */
   sold: number;
+  /** Выручка от товаров */
+  revenueGoods: number;
   /** Склад (остаток не на полке) */
   warehouse: number;
 }
@@ -35,14 +41,16 @@ export function expectedOnShelf(input: Pick<InventoryLineInput, "previousStock" 
 export function calculateInventoryLine(
   input: InventoryLineInput,
 ): InventoryLineCalculated {
-  const sold = Math.max(0, input.previousStock + input.delivered - input.fact);
+  const sold = input.sold ?? Math.max(0, input.previousStock + input.delivered - input.fact);
   const difference = input.previousStock + input.delivered - input.displayed - input.fact;
   const warehouse = Math.max(0, input.fact - input.displayed);
+  const revenueGoods = Number(input.revenueGoods ?? 0);
 
   return {
     ...input,
     difference,
     sold,
+    revenueGoods,
     warehouse,
   };
 }

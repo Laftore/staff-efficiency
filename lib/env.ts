@@ -25,6 +25,10 @@ export function isDatabaseConfigured(): boolean {
   return Boolean(process.env.DATABASE_URL);
 }
 
+export function isSmartshellConfigured(): boolean {
+  return Boolean(process.env.SMARTSHELL_API_TOKEN);
+}
+
 export function getServerEnv() {
   return serverSchema.parse({
     DATABASE_URL: process.env.DATABASE_URL,

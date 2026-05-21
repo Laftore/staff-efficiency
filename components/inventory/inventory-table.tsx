@@ -27,6 +27,8 @@ export interface InventoryRowInitial {
   previousStock: number;
   delivered: number;
   displayed: number;
+  sold: number;
+  revenueGoods: number;
   fact: number;
 }
 
@@ -61,6 +63,8 @@ export function InventoryTable({ shiftId, rows: initialRows }: InventoryTablePro
         previousStock: row.previousStock,
         delivered: row.delivered,
         displayed: row.displayed,
+        sold: row.sold,
+        revenueGoods: row.revenueGoods,
         fact: Number.isFinite(fact) ? Math.max(0, Math.floor(fact)) : 0,
       });
       return { ...row, ...calc, tone: getDifferenceTone(calc.difference) };
@@ -72,8 +76,9 @@ export function InventoryTable({ shiftId, rows: initialRows }: InventoryTablePro
       (acc, r) => ({
         sold: acc.sold + r.sold,
         difference: acc.difference + r.difference,
+        revenueGoods: acc.revenueGoods + r.revenueGoods,
       }),
-      { sold: 0, difference: 0 },
+      { sold: 0, difference: 0, revenueGoods: 0 },
     );
   }, [computedRows]);
 
@@ -104,11 +109,21 @@ export function InventoryTable({ shiftId, rows: initialRows }: InventoryTablePro
         <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
           <Badge variant="outline" className="gap-1">
             <Package className="size-3" />
-            Smartshell · placeholder
+            Smartshell
           </Badge>
           <span>
             Продано за смену:{" "}
             <strong className="text-foreground">{totals.sold} шт.</strong>
+          </span>
+          <span>
+            Выручка по товарам: {" "}
+            <strong className="text-foreground">
+              {totals.revenueGoods.toLocaleString("ru-RU", {
+                style: "currency",
+                currency: "RUB",
+                maximumFractionDigits: 0,
+              })}
+            </strong>
           </span>
           <span>
             Σ разница:{" "}
@@ -144,6 +159,8 @@ export function InventoryTable({ shiftId, rows: initialRows }: InventoryTablePro
               <TableHead className="text-right">Было</TableHead>
               <TableHead className="text-right">Доставлено</TableHead>
               <TableHead className="text-right">Выставлено</TableHead>
+              <TableHead className="text-right">Продано</TableHead>
+              <TableHead className="text-right">Выручка ₽</TableHead>
               <TableHead className="min-w-[88px] text-right">Факт</TableHead>
               <TableHead className="text-right">Разница</TableHead>
               <TableHead className="text-right">Продано</TableHead>
@@ -168,6 +185,16 @@ export function InventoryTable({ shiftId, rows: initialRows }: InventoryTablePro
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {row.displayed}
                 </TableCell>
+                <TableCell className="text-right tabular-nums text-foreground">
+                  {row.sold}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-foreground">
+                  {row.revenueGoods.toLocaleString("ru-RU", {
+                    style: "currency",
+                    currency: "RUB",
+                    maximumFractionDigits: 0,
+                  })}
+                </TableCell>
                 <TableCell className="text-right">
                   <Input
                     type="number"
@@ -183,7 +210,6 @@ export function InventoryTable({ shiftId, rows: initialRows }: InventoryTablePro
                   {row.difference > 0 ? "+" : ""}
                   {row.difference}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{row.sold}</TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {row.warehouse}
                 </TableCell>

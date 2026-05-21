@@ -8,6 +8,7 @@ import {
 import { getSessionUser } from "@/lib/auth/session";
 import { SMARTSHELL_PLACEHOLDER_CATALOG } from "@/lib/inventory/catalog";
 import { assertShiftInventoryAccess } from "@/lib/inventory/queries";
+import { normalizeSmartshellProduct, fetchSmartshellProducts } from "@/lib/smartshell/service";
 import { prisma } from "@/lib/prisma";
 import { isDatabaseConfigured } from "@/lib/env";
 import { inventorySaveSchema } from "@/lib/validations/inventory";
@@ -31,11 +32,14 @@ export async function saveInventoryFacts(
       return { error: parsed.error.issues[0]?.message ?? "Неверные данные" };
     }
 
-    await assertShiftInventoryAccess(user, parsed.data.shiftId);
+    const { branchId } = await assertShiftInventoryAccess(user, parsed.data.shiftId);
 
-    const catalogMap = new Map(
-      SMARTSHELL_PLACEHOLDER_CATALOG.map((c) => [c.productName, c]),
-    );
+    const externalCatalog = await fetchSmartshellProducts(branchId).catch(() => []);
+    const catalogRows = externalCatalog.length > 0
+      ? externalCatalog.map(normalizeSmartshellProduct)
+      : SMARTSHELL_PLACEHOLDER_CATALOG;
+
+    const catalogMap = new Map(catalogRows.map((c) => [c.productName, c]));
 
     await prisma.$transaction(async (tx) => {
       await tx.inventoryItem.deleteMany({

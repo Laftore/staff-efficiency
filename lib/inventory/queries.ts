@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { AuthorizationError, assertBranchAccess, branchScopeWhere } from "@/lib/auth/authorization";
 import { isDatabaseConfigured } from "@/lib/env";
 import { SMARTSHELL_PLACEHOLDER_CATALOG } from "@/lib/inventory/catalog";
+import { fetchSmartshellProducts, normalizeSmartshellProduct, syncSmartshellShiftInventory } from "@/lib/smartshell/import-service";
 import type { SessionUser } from "@/types";
 import type { Prisma } from "@prisma/client";
 
@@ -20,6 +21,8 @@ export interface InventoryRowData {
   previousStock: number;
   delivered: number;
   displayed: number;
+  sold: number;
+  revenueGoods: number;
   fact: number;
 }
 
@@ -95,8 +98,25 @@ export async function getInventoryRowsForShift(
     return SMARTSHELL_PLACEHOLDER_CATALOG.map((item) => ({
       ...item,
       fact: Math.max(0, item.previousStock + item.delivered - item.displayed),
+      sold: 0,
+      revenueGoods: 0,
     }));
   }
+
+  await syncSmartshellShiftInventory(shiftId);
+
+  const shift = await prisma.shift.findUnique({
+    where: { id: shiftId },
+    select: { branchId: true },
+  });
+
+  const externalCatalog = shift?.branchId
+    ? await fetchSmartshellProducts(shift.branchId).catch(() => [])
+    : [];
+
+  const catalog = externalCatalog.length > 0
+    ? externalCatalog.map(normalizeSmartshellProduct)
+    : SMARTSHELL_PLACEHOLDER_CATALOG;
 
   const saved = await prisma.inventoryItem.findMany({
     where: { shiftId },
@@ -104,7 +124,7 @@ export async function getInventoryRowsForShift(
 
   const savedByName = new Map(saved.map((s) => [s.productName, s]));
 
-  return SMARTSHELL_PLACEHOLDER_CATALOG.map((item) => {
+  return catalog.map((item) => {
     const stored = savedByName.get(item.productName);
     const defaultFact = Math.max(0, item.previousStock + item.delivered - item.displayed);
     return {
@@ -114,6 +134,8 @@ export async function getInventoryRowsForShift(
       previousStock: stored?.previousStock ?? item.previousStock,
       delivered: stored?.delivered ?? item.delivered,
       displayed: stored?.displayed ?? item.displayed,
+      sold: stored?.sold ?? 0,
+      revenueGoods: stored?.revenueGoods ?? 0,
       fact: stored?.fact ?? defaultFact,
     };
   });

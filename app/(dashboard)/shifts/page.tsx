@@ -3,9 +3,10 @@ import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { ShiftFormDialog } from "@/components/shifts/shift-form-dialog";
 import { ShiftsFilters } from "@/components/shifts/shifts-filters";
 import { ShiftsTable, type ShiftRow } from "@/components/shifts/shifts-table";
+import { SmartshellSyncStatus } from "@/components/dashboard/smartshell-sync-status";
 import { getSessionUser } from "@/lib/auth/session";
 import { canAccessAllBranches, canResetBonus } from "@/lib/auth/roles";
-import { isDatabaseConfigured } from "@/lib/env";
+import { isDatabaseConfigured, isSmartshellConfigured } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import {
   listBranchesForUser,
@@ -39,9 +40,14 @@ export default async function ShiftsPage({ searchParams }: ShiftsPageProps) {
   };
 
   const branches = await listBranchesForUser(user);
-  const shiftsRaw = await listShifts(user, filters);
-
   const branchIds = branches.map((b) => b.id);
+
+  const lastSyncedAt = branches
+    .map((branch) => branch.smartshellLastSyncAt)
+    .filter((value): value is Date => Boolean(value))
+    .sort((a, b) => b.getTime() - a.getTime())[0]?.toISOString() ?? null;
+
+  const shiftsRaw = await listShifts(user, filters);
   let employees = isDatabaseConfigured()
     ? await prisma.employee.findMany({
         where: { branchId: { in: branchIds.length > 0 ? branchIds : ["__none__"] } },
@@ -89,6 +95,14 @@ export default async function ShiftsPage({ searchParams }: ShiftsPageProps) {
     <>
       <DashboardHeader title="Смены" showSignOut={Boolean(user)} />
       <div className="space-y-6 p-6">
+        {!isSmartshellConfigured() ? (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            Smartshell API не настроен. Данные смен загружаются из локальной базы данных.
+          </div>
+        ) : null}
+
+        <SmartshellSyncStatus branchIds={branchIds} latestSmartshellSyncAt={lastSyncedAt} />
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-muted-foreground">

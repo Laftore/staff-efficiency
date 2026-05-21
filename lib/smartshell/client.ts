@@ -6,8 +6,8 @@ export interface SmartshellClientConfig {
 }
 
 /**
- * Placeholder GraphQL client for Smartshell API.
- * @see https://apidoc.smartshell.gg
+ * GraphQL client for Smartshell.
+ * Uses server-side fetch and Bearer token authentication.
  */
 export class SmartshellClient {
   private readonly apiUrl: string;
@@ -18,15 +18,36 @@ export class SmartshellClient {
     this.token = config.token ?? process.env.SMARTSHELL_API_TOKEN;
   }
 
-  /**
-   * Executes a GraphQL query/mutation against Smartshell.
-   * TODO: implement in Smartshell integration step.
-   */
-  async query<T>(_document: string, _variables?: Record<string, unknown>): Promise<T> {
+  async query<T>(document: string, variables: Record<string, unknown> = {}): Promise<T> {
     if (!this.token) {
       throw new Error("SMARTSHELL_API_TOKEN is not configured");
     }
-    throw new Error("Smartshell GraphQL client not implemented yet");
+
+    const response = await fetch(this.apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.token}`,
+      },
+      body: JSON.stringify({ query: document, variables }),
+      cache: "no-store",
+    });
+
+    const payload = (await response.json()) as {
+      data?: T;
+      errors?: Array<{ message: string }>;
+    };
+
+    if (!response.ok || payload.errors?.length) {
+      const message = payload.errors?.map((error) => error.message).join("; ") ?? response.statusText;
+      throw new Error(`Smartshell GraphQL error: ${message}`);
+    }
+
+    if (!payload.data) {
+      throw new Error("Smartshell GraphQL returned no data");
+    }
+
+    return payload.data;
   }
 }
 

@@ -3,12 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
-/// Филиал = tenant (branch_id во всех таблицах для RLS).
+/// SQLite variant used only for local dev checks (temporary)
 model Branch {
   id                 String     @id @default(cuid())
   name               String
@@ -23,13 +22,11 @@ model Branch {
   @@map("branches")
 }
 
-/// Профиль Supabase Auth (id = auth.users.id).
 model Profile {
   id          String    @id
   email       String
   displayName String    @map("display_name")
   role        Role      @default(ADMIN)
-  /// tenant_id: null только у OWNER (доступ ко всем филиалам)
   branchId    String?   @map("branch_id")
   branch      Branch?   @relation(fields: [branchId], references: [id])
   employee    Employee?
@@ -40,7 +37,6 @@ model Profile {
   @@map("profiles")
 }
 
-/// Сотрудник смены (может быть привязан к Profile для входа в приложение).
 model Employee {
   id        String   @id @default(cuid())
   name      String
@@ -74,7 +70,7 @@ model Shift {
   branch           Branch          @relation(fields: [branchId], references: [id])
   employeeId       String          @map("employee_id")
   employee         Employee        @relation(fields: [employeeId], references: [id])
-  date             DateTime        @db.Date
+  date             DateTime
   type             ShiftType
   revenueTariff    Float           @default(0) @map("revenue_tariff")
   revenueGoods     Float           @default(0) @map("revenue_goods")
@@ -83,7 +79,7 @@ model Shift {
   bonusManualReset Boolean         @default(false) @map("bonus_manual_reset")
   inventory        InventoryItem[]
   createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime        @updatedAt @map("updated_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@index([branchId])
   @@index([employeeId])
