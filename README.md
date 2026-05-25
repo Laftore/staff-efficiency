@@ -216,7 +216,3 @@ npm run test:bonus
 ## 📝 Лицензия
 
 Internal use only.
-
----
-
-**Разработано для StaffEfficiency** — 2026 🚀
