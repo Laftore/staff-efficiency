@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { saveShift, type ShiftActionResult } from "@/app/actions/shifts";
 import { calculateShiftBonus } from "@/lib/kpi/bonus";
 import { formatCurrency } from "@/lib/shifts/format";
@@ -95,9 +96,20 @@ export function ShiftFormDialog({
 
   useEffect(() => {
     if (state?.success) {
+      toast.success(isEdit ? "Смена обновлена" : "Смена создана", {
+        description: "Бонус пересчитан автоматически",
+      });
       setOpen(false);
     }
-  }, [state?.success]);
+  }, [state?.success, isEdit]);
+
+  useEffect(() => {
+    if (state?.error) {
+      toast.error("Ошибка сохранения смены", {
+        description: state.error,
+      });
+    }
+  }, [state?.error]);
 
   useEffect(() => {
     if (open && initial) {

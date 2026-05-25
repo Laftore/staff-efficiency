@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { ServiceWorkerRegister } from "@/components/providers/service-worker-register";
+import { ToasterProvider } from "@/components/providers/toaster-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,7 +41,11 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="min-h-full">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ServiceWorkerRegister />
+          <ToasterProvider />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
