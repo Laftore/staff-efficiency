@@ -29,7 +29,7 @@
 - Уведомления в личку или чат ВКонтакте: новая смена, новый бонус, напоминания, ежедневный отчёт
 
 ## Технический стек
-- Next.js 15 (App Router + Server Components)
+- Next.js 16 (App Router + Server Components)
 - TypeScript (strict)
 - Tailwind + shadcn/ui + next-themes (тёмная/светлая)
 - Supabase (Auth + Postgres + RLS + Realtime)
