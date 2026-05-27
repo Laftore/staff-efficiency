@@ -1,7 +1,0 @@
----
-alwaysApply: false
----
-# Supabase + Prisma
-- Используй Prisma Client в Server Actions
-- RLS на всех таблицах по tenant_id и роли
-- Supabase Auth + custom roles (owner, senior_admin, admin)

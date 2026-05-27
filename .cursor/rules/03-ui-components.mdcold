@@ -1,8 +1,0 @@
----
-alwaysApply: false
----
-# UI Rules
-- shadcn/ui + lucide-react
-- Тёмная тема по умолчанию (кибер-стиль)
-- Карточки KPI с большими цифрами и трендами
-- Responsive + PWA-first

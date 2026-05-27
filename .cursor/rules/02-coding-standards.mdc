@@ -1,9 +1,0 @@
----
-alwaysApply: false
----
-# Coding Standards
-- PascalCase для компонентов
-- camelCase для всего остального
-- Zod для валидации
-- JSDoc для важных функций
-- Никогда не используй any
