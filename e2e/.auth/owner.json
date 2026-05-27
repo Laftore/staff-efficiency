@@ -1,0 +1,25 @@
+{
+  "cookies": [
+    {
+      "name": "e2e-test-role",
+      "value": "OWNER",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "sb-localhost-auth-token",
+      "value": "{\"access_token\":\"mock-e2e-token\",\"refresh_token\":\"mock-e2e-refresh\",\"expires_at\":1779898281,\"expires_in\":3600,\"token_type\":\"bearer\",\"user\":{\"id\":\"e2e-test-owner\",\"email\":\"owner@test.com\"}}",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

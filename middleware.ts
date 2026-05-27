@@ -10,6 +10,19 @@ function isPublicRoute(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // === E2E Mock Auth: short-circuit before real Supabase check ===
+  // This allows full E2E runs (including protected routes) without SERVICE_ROLE_KEY or real users.
+  if (process.env.E2E_AUTH_MOCK === "1") {
+    const hasE2ERole = request.cookies.has("e2e-test-role");
+    if (hasE2ERole) {
+      // Pretend we have a valid session — do not redirect, do not call Supabase in middleware.
+      let response = NextResponse.next({ request });
+      // Ensure the cookie is visible to server components (already is via storageState)
+      return response;
+    }
+  }
+
   const { response, user } = await updateSession(request);
 
   if (!isSupabaseConfigured()) {
