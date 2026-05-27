@@ -1,23 +1,107 @@
-version: '3.8'
+# docker-compose.yml — Development environment for StaffEfficiency
+#
+# Purpose:
+#   Provides a complete, one-command local development experience with:
+#   - Hot reload (Next.js Turbopack)
+#   - Live code changes reflected instantly (volume mounts)
+#   - Automatic Prisma Client regeneration
+#   - Easy connection to Supabase Local running on the host
+#
+# Quick start:
+#   1. Make sure you have .env.local with your Supabase credentials
+#   2. (Recommended) Run Supabase locally on host: `supabase start`
+#   3. docker compose up --build
+#
+# Then open http://localhost:3000
+#
+# ------------------------------------------------------------------
+# IMPORTANT NOTES FOR DEVELOPERS
+# ------------------------------------------------------------------
+#
+# 1. Hot Reload & Volumes
+#    - The entire project is mounted into the container.
+#    - node_modules is protected by an anonymous volume (prevents host/container mismatch).
+#    - .next is also protected for faster dev server restarts.
+#
+# 2. Supabase Local (host.docker.internal)
+#    - On macOS / Windows: use `host.docker.internal` in your DATABASE_URL and Supabase URLs.
+#    - On Linux: the `extra_hosts` section below makes `host.docker.internal` work too.
+#    - Example DATABASE_URL for Supabase Local:
+#      postgresql://postgres:postgres@host.docker.internal:54322/postgres
+#
+# 3. Prisma
+#    - Prisma Client is regenerated automatically every time the container starts.
+#    - If you change prisma/schema.prisma while the container is running,
+#      run: docker compose exec app npx prisma generate
+#
+# 4. Production vs Development
+#    - This compose file is intended for LOCAL DEVELOPMENT only.
+#    - For production deployments use the multi-stage `Dockerfile` directly
+#      (recommended in CI/CD pipelines or with `docker build -f Dockerfile .`).
+#    - The production image uses `output: 'standalone'` and runs `node server.js`.
+#
+# 5. One-command start (as requested):
+#    docker compose up --build
+#
+# ------------------------------------------------------------------
 
 services:
-  staff-efficiency:
+  app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
+    container_name: staff-efficiency-dev
+
     ports:
       - "3000:3000"
+
+    # Environment variables are loaded from .env.local (recommended)
+    # You can also override specific variables here.
+    env_file:
+      - .env.local
+
+    # Explicit environment overrides / additions for Docker dev
     environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - DIRECT_URL=${DIRECT_URL}
-      # VK Bot (optional)
-      - VK_BOT_TOKEN=${VK_BOT_TOKEN}
-      - VK_GROUP_ID=${VK_GROUP_ID}
-      - VK_CONFIRMATION_TOKEN=${VK_CONFIRMATION_TOKEN}
-      - VK_SECRET=${VK_SECRET}
+      # Force development mode
+      - NODE_ENV=development
+      # Disable Next.js telemetry
+      - NEXT_TELEMETRY_DISABLED=1
+      # Tell the app it's running inside Docker (optional, useful for some libs)
+      - DOCKER=true
+
+    # Volume mounts for hot reload + node_modules protection
+    volumes:
+      # Mount entire project (source code changes are reflected immediately)
+      - .:/app
+      # Protect container's node_modules from host (critical for cross-platform dev)
+      - /app/node_modules
+      # Protect .next cache (speeds up dev server restarts)
+      - /app/.next
+
+    # Make host.docker.internal work on Linux (for Supabase Local)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # Regenerate Prisma Client + start dev server with hot reload
+    # This ensures that any schema changes are picked up on restart.
+    command: >
+      sh -c "
+        echo '🔄 Generating Prisma Client...' &&
+        npx prisma generate &&
+        echo '🚀 Starting Next.js dev server (Turbopack)...' &&
+        npm run dev
+      "
+
+    # Healthcheck (optional but useful)
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
     restart: unless-stopped
-    # If you need to run migrations on startup (not recommended for production)
-    # command: sh -c "npx prisma migrate deploy && node server.js"
+
+    # You can add depends_on if you later add a local database service
+    # depends_on:
+    #   - db

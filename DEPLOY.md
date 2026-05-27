@@ -99,23 +99,38 @@ npx prisma db seed
 docker build -t staff-efficiency .
 ```
 
-### Шаг 2: Запуск через docker-compose
+### Шаг 2: Запуск через Docker (Production)
 
-Создайте файл `.env.production` с переменными окружения и выполните:
-
-```bash
-docker-compose up -d
-```
-
-### Шаг 3: Применение миграций
+> **Примечание:** `docker-compose.yml` в корне проекта теперь предназначен **только для локальной разработки**.
+> Для продакшена используйте production `Dockerfile` напрямую.
 
 ```bash
-docker-compose exec staff-efficiency npx prisma migrate deploy
+# Сборка production образа (multi-stage, standalone)
+docker build -f Dockerfile -t staff-efficiency:latest .
+
+# Запуск (пример)
+docker run -p 3000:3000 \
+  --env-file .env.production \
+  staff-efficiency:latest
 ```
 
-### Пример `docker-compose.yml`
+Или используйте свой production `docker-compose.prod.yml` с production Dockerfile.
 
-Смотрите файл `docker-compose.yml` в корне проекта.
+### Шаг 3: Применение миграций (в контейнере)
+
+```bash
+docker exec -it <container-name> npx prisma migrate deploy
+```
+
+### Разработка (локально)
+
+Для удобной разработки с hot reload используйте:
+
+```bash
+docker compose up --build
+```
+
+Подробности — в комментариях внутри `docker-compose.yml` и `Dockerfile.dev`.
 
 ### Рекомендации по reverse proxy
 

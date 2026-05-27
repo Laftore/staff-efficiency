@@ -1,0 +1,43 @@
+# Dockerfile.dev — Optimized for local development with hot reload
+#
+# Key goals:
+# - Fast iteration (hot reload via Turbopack)
+# - Prisma Client always up-to-date when schema changes
+# - Good layer caching for npm dependencies
+# - Works well with docker compose volume mounts
+#
+# Usage:
+#   docker compose up --build
+#
+# Base image: node:20-alpine (matches production for consistency)
+
+FROM node:20-alpine
+
+# Install necessary tools (for Prisma + healthchecks if needed later)
+RUN apk add --no-cache libc6-compat openssl
+
+WORKDIR /app
+
+# --- Dependency installation (cached layer) ---
+# Copy only package files first for better Docker layer caching
+COPY package.json package-lock.json* ./
+
+# Use npm install (not ci) in dev for flexibility with package changes
+# In CI you would use `npm ci --omit=dev`
+RUN npm install
+
+# --- Copy source code ---
+# Note: In docker-compose we will mount the current directory as a volume,
+# which overrides most of this COPY. This COPY is mainly for initial build.
+COPY . .
+
+# Generate Prisma Client at build time (good for first start)
+# In development we also run it again on container start (see docker-compose)
+RUN npx prisma generate
+
+# Expose Next.js dev port
+EXPOSE 3000
+
+# Default command — hot reload enabled by default with Turbopack (Next.js 16)
+# We use a shell form so that docker-compose can easily override the command
+CMD ["npm", "run", "dev"]
