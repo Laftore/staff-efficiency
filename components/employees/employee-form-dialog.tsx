@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { createEmployee, updateEmployee } from "@/app/actions/employees";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,8 +73,8 @@ export function EmployeeFormDialog({
   triggerLabel,
   userRole,
 }: EmployeeFormDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const isEdit = Boolean(initial?.id);
   const canPickBranch = userRole === "OWNER";
@@ -104,12 +106,10 @@ export function EmployeeFormDialog({
         branchId: initial?.branchId ?? defaultBranchId ?? branches[0]?.id ?? "",
         profileEmail: initial?.profileEmail ?? "",
       });
-      setServerError(null);
     }
   }, [open, initial, defaultBranchId, branches, form]);
 
   async function onSubmit(values: EmployeeFormValues) {
-    setServerError(null);
     setPending(true);
     try {
       const result = isEdit && initial?.id
@@ -117,9 +117,14 @@ export function EmployeeFormDialog({
         : await createEmployee(values);
 
       if (result.error) {
-        setServerError(result.error);
+        toast.error("Ошибка сохранения сотрудника", {
+          description: result.error,
+        });
         return;
       }
+
+      toast.success(isEdit ? "Сотрудник обновлён" : "Сотрудник создан");
+      router.refresh();
       setOpen(false);
     } finally {
       setPending(false);
@@ -248,12 +253,6 @@ export function EmployeeFormDialog({
                 </FormItem>
               )}
             />
-
-            {serverError ? (
-              <p className="text-sm text-destructive" role="alert">
-                {serverError}
-              </p>
-            ) : null}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>

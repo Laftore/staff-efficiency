@@ -1,54 +1,25 @@
 import type { VKMessage, BonusNotification } from "./types";
+import { VKClient } from "./client";
+import { verifyVkSignature, verifySignature } from "./utils";
 
-const VK_API_VERSION = "5.131";
-const VK_BOT_TOKEN = process.env.VK_BOT_TOKEN;
 const VK_GROUP_ID = process.env.VK_GROUP_ID;
 
+/**
+ * Сервис для отправки сообщений через VK.
+ * Является транспортным слоем. Для бизнес-уведомлений используйте notifications.ts
+ */
 export class VKBotService {
   /**
-   * Отправить сообщение в VK чат
+   * Отправить сообщение в VK чат.
+   * Делегирует работу в VKClient.
    */
   static async sendMessage(message: VKMessage): Promise<{ message_id: number } | null> {
-    if (!VK_BOT_TOKEN || !message.peer_id) {
-      console.warn("VK Bot not configured or peer_id missing");
-      return null;
-    }
-
-    try {
-      const params = new URLSearchParams({
-        message: message.message,
-        peer_id: String(message.peer_id),
-        random_id: String(message.random_id || Math.random() * 1000000),
-        access_token: VK_BOT_TOKEN,
-        v: VK_API_VERSION,
-      });
-
-      if (message.keyboard) {
-        params.append("keyboard", JSON.stringify(message.keyboard));
-      }
-
-      const response = await fetch("https://api.vk.com/method/messages.send", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params.toString(),
-      });
-
-      const data = (await response.json()) as { response?: { message_id: number }; error?: Record<string, unknown> };
-
-      if (data.error) {
-        console.error("VK API error:", data.error);
-        return null;
-      }
-
-      return data.response || null;
-    } catch (error) {
-      console.error("Failed to send VK message:", error);
-      return null;
-    }
+    return VKClient.sendMessage(message);
   }
 
   /**
-   * Отправить уведомление о создании смены
+   * @deprecated Используйте notifyNewShiftCreated из notifications.ts
+   * Отправить уведомление о создании смены (устаревший метод)
    */
   static async notifyShiftCreated(notification: BonusNotification, peerId: number): Promise<boolean> {
     const message: VKMessage = {
@@ -61,7 +32,8 @@ export class VKBotService {
   }
 
   /**
-   * Отправить уведомление о расчёте бонуса
+   * @deprecated Используйте notifyBonusNeedsReset из notifications.ts
+   * Отправить уведомление о расчёте бонуса (устаревший метод)
    */
   static async notifyBonusCalculated(notification: BonusNotification, peerId: number): Promise<boolean> {
     let text = `💰 Бонус рассчитан!\n\n${notification.message}`;
@@ -84,7 +56,8 @@ export class VKBotService {
   }
 
   /**
-   * Отправить уведомление об обнулении бонуса
+   * @deprecated Используйте notifyBonusWasReset из notifications.ts
+   * Отправить уведомление об обнулении бонуса (устаревший метод)
    */
   static async notifyBonusReset(notification: BonusNotification, peerId: number): Promise<boolean> {
     const message: VKMessage = {
@@ -110,17 +83,11 @@ export class VKBotService {
   }
 
   /**
-   * Проверить подпись запроса от VK (для безопасности)
+   * Проверить подпись запроса от VK (для безопасности).
+   * Делегирует в verifyVkSignature из utils.ts
+   * @deprecated Рекомендуется использовать verifyVkSignature напрямую из @/lib/vk/utils
    */
   static verifySignature(body: string, signature: string): boolean {
-    if (!process.env.VK_SECRET) {
-      console.warn("VK_SECRET not set, skipping signature verification");
-      return true;
-    }
-
-    // VK использует HMAC-SHA256 для подписи
-    // Это базовая проверка; полная реализация требует crypto
-    console.log("Signature verification: skipped (implement crypto.hmac if needed)");
-    return true;
+    return verifyVkSignature(body, signature);
   }
 }

@@ -33,10 +33,17 @@ model Profile {
   branchId    String?   @map("branch_id")
   branch      Branch?   @relation(fields: [branchId], references: [id])
   employee    Employee?
+
+  /// VK Chat ID (peer_id) для отправки уведомлений через VK Bot.
+  /// Заполняется владельцем/старшим админом для получения уведомлений.
+  /// Поддерживает BigInt, так как VK IDs — 64-битные числа.
+  vkChatId    BigInt?   @map("vk_chat_id")
+
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@index([branchId])
+  @@index([vkChatId])
   @@map("profiles")
 }
 

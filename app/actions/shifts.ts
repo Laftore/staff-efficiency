@@ -14,6 +14,13 @@ import { isDatabaseConfigured } from "@/lib/env";
 import { shiftFormSchema, updateShiftSchema } from "@/lib/validations/shift";
 import type { ShiftType } from "@/types";
 
+// VK Bot уведомления (fire-and-forget)
+import {
+  notifyNewShiftCreated,
+  notifyBonusNeedsReset,
+  notifyBonusWasReset,
+} from "@/lib/vk/notifications";
+
 export type ShiftActionResult = { error?: string; success?: boolean };
 
 function formDataToObject(formData: FormData): Record<string, unknown> {
@@ -149,7 +156,7 @@ export async function saveShift(
 
     await assertEmployeeInBranch(data.employeeId, data.branchId);
 
-    const { bonus } = resolveBonus(
+    const { bonus, needsReset } = resolveBonus(
       data.revenueTariff,
       data.revenueGoods,
       data.type,
@@ -157,7 +164,7 @@ export async function saveShift(
       false,
     );
 
-    await prisma.shift.create({
+    const createdShift = await prisma.shift.create({
       data: {
         branchId: data.branchId,
         employeeId: data.employeeId,
@@ -172,6 +179,19 @@ export async function saveShift(
     });
 
     revalidatePath("/shifts");
+
+    // === VK Bot уведомления (fire-and-forget) ===
+    // Не блокируем ответ пользователю при проблемах с VK
+    notifyNewShiftCreated(createdShift.id).catch((err) => {
+      console.error("[VK] notifyNewShiftCreated failed:", err);
+    });
+
+    if (needsReset) {
+      notifyBonusNeedsReset(createdShift.id).catch((err) => {
+        console.error("[VK] notifyBonusNeedsReset failed:", err);
+      });
+    }
+
     return { success: true };
   } catch (e) {
     if (e instanceof AuthorizationError) {
@@ -211,6 +231,12 @@ export async function resetShiftBonus(shiftId: string): Promise<ShiftActionResul
     });
 
     revalidatePath("/shifts");
+
+    // === VK Bot уведомление (fire-and-forget) ===
+    notifyBonusWasReset(shiftId).catch((err) => {
+      console.error("[VK] notifyBonusWasReset failed:", err);
+    });
+
     return { success: true };
   } catch (e) {
     if (e instanceof AuthorizationError) {

@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { createBranch, updateBranch } from "@/app/actions/branches";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,8 +40,8 @@ interface BranchFormDialogProps {
 }
 
 export function BranchFormDialog({ initial, triggerLabel }: BranchFormDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const isEdit = Boolean(initial?.id);
 
@@ -57,12 +59,10 @@ export function BranchFormDialog({ initial, triggerLabel }: BranchFormDialogProp
         name: initial?.name ?? "",
         address: initial?.address ?? "",
       });
-      setServerError(null);
     }
   }, [open, initial, form]);
 
   async function onSubmit(values: BranchFormValues) {
-    setServerError(null);
     setPending(true);
     try {
       const result =
@@ -71,9 +71,14 @@ export function BranchFormDialog({ initial, triggerLabel }: BranchFormDialogProp
           : await createBranch(values);
 
       if (result.error) {
-        setServerError(result.error);
+        toast.error("Ошибка сохранения филиала", {
+          description: result.error,
+        });
         return;
       }
+
+      toast.success(isEdit ? "Филиал обновлён" : "Филиал создан");
+      router.refresh();
       setOpen(false);
     } finally {
       setPending(false);
@@ -132,12 +137,6 @@ export function BranchFormDialog({ initial, triggerLabel }: BranchFormDialogProp
                 </FormItem>
               )}
             />
-
-            {serverError ? (
-              <p className="text-sm text-destructive" role="alert">
-                {serverError}
-              </p>
-            ) : null}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>

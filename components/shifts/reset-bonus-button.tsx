@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Ban } from "lucide-react";
+import { Ban, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { resetShiftBonus, type ShiftActionResult } from "@/app/actions/shifts";
 import { Button } from "@/components/ui/button";
@@ -35,8 +35,10 @@ export function ResetBonusButton({ shiftId }: ResetBonusButtonProps) {
         variant="outline"
         size="sm"
         disabled={pending}
+        title="Доступно только SENIOR_ADMIN и OWNER"
         className="border-destructive/50 text-destructive hover:bg-destructive/10"
       >
+        <Lock className="size-3.5" />
         <Ban className="size-3.5" />
         {pending ? "…" : "Обнулить"}
       </Button>

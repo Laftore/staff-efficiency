@@ -81,6 +81,10 @@ export function ShiftsTable({
               bonusAdjustment: shift.bonusAdjustment,
               bonusManualReset: shift.bonusManualReset,
             });
+            // Кнопка «Обнулить» показывается ТОЛЬКО если:
+            // 1. У пользователя достаточно прав (SENIOR_ADMIN / OWNER) — приходит сверху через canResetBonus
+            // 2. Формула посчитала needsReset (Q < 0 после всех корректировок)
+            // Сама кнопка дополнительно защищена серверной проверкой в resetShiftBonus.
             const showReset = canResetBonus && calc.needsReset;
 
             const editInitial: ShiftFormInitial = {

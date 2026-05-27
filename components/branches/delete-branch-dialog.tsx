@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { deleteBranch } from "@/app/actions/branches";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,21 +31,25 @@ export function DeleteBranchDialog({
   shiftsCount,
   profilesCount,
 }: DeleteBranchDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   const hasLinks = employeesCount > 0 || shiftsCount > 0 || profilesCount > 0;
 
   async function handleDelete() {
-    setError(null);
     setPending(true);
     try {
       const result = await deleteBranch(branchId);
       if (result.error) {
-        setError(result.error);
+        toast.error("Ошибка удаления филиала", {
+          description: result.error,
+        });
         return;
       }
+
+      toast.success(`Филиал «${branchName}» удалён`);
+      router.refresh();
       setOpen(false);
     } finally {
       setPending(false);
@@ -81,12 +87,6 @@ export function DeleteBranchDialog({
             У филиала нет сотрудников, смен и профилей — удаление безопасно.
           </p>
         )}
-
-        {error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>

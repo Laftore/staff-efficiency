@@ -1,14 +1,27 @@
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { BranchFormDialog } from "@/components/branches/branch-form-dialog";
+import { VkBotSettings } from "@/components/branches/vk-bot-settings";
 import { BranchesTable, type BranchRow } from "@/components/branches/branches-table";
 import { getSessionUser } from "@/lib/auth/session";
 import { canManageBranches } from "@/lib/auth/roles";
 import { listBranchesWithCounts } from "@/lib/branches/queries";
 import { isDatabaseConfigured } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
 
 export default async function BranchesPage() {
   const user = await getSessionUser();
   const isOwner = user ? canManageBranches(user.role) : false;
+
+  // Получаем текущий vkChatId владельца (только для OWNER)
+  const ownerProfile = isOwner && user
+    ? await prisma.profile.findUnique({
+        where: { id: user.id },
+        select: { vkChatId: true },
+      })
+    : null;
+
+  const currentVkChatId = ownerProfile?.vkChatId ? String(ownerProfile.vkChatId) : null;
+
   const branchesRaw = isOwner ? await listBranchesWithCounts() : [];
 
   const branches: BranchRow[] = branchesRaw.map((b) => ({
@@ -42,6 +55,8 @@ export default async function BranchesPage() {
 
         {isOwner ? (
           <>
+            <VkBotSettings initialVkChatId={currentVkChatId} />
+
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
                 {branches.length} филиалов · tenant для multi-branch и RLS

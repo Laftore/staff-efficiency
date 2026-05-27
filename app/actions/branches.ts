@@ -48,6 +48,7 @@ export async function createBranch(input: BranchFormValues): Promise<BranchActio
     revalidatePath("/branches");
     revalidatePath("/employees");
     revalidatePath("/shifts");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (e) {
     if (e instanceof AuthorizationError) {
@@ -89,6 +90,7 @@ export async function updateBranch(input: UpdateBranchValues): Promise<BranchAct
     revalidatePath("/branches");
     revalidatePath("/employees");
     revalidatePath("/shifts");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (e) {
     if (e instanceof AuthorizationError) {
@@ -138,6 +140,7 @@ export async function deleteBranch(branchId: string): Promise<BranchActionResult
     revalidatePath("/branches");
     revalidatePath("/employees");
     revalidatePath("/shifts");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (e) {
     if (e instanceof AuthorizationError) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Clock3, CloudUpload, RotateCcw, ShieldCheck } from "lucide-react";
@@ -35,6 +36,28 @@ export function SmartshellSyncStatusForm({
   );
 
   const statuses = state?.statuses;
+
+  // Toast on sync completion (avoid firing on initial mount)
+  const prevHadStatuses = useRef(false);
+  useEffect(() => {
+    if (statuses && statuses.length > 0) {
+      if (prevHadStatuses.current) {
+        const failed = statuses.filter((s) => !s.success).length;
+        const totalSales = statuses.reduce((sum, s) => sum + (s.salesCount ?? 0), 0);
+
+        if (failed > 0) {
+          toast.error("Синхронизация Smartshell завершена с ошибками", {
+            description: `Импортировано ${totalSales} продаж. ${failed} филиал(ов) с ошибками.`,
+          });
+        } else {
+          toast.success("Синхронизация Smartshell успешна", {
+            description: `Импортировано ${totalSales} продаж из ${statuses.length} смен.`,
+          });
+        }
+      }
+      prevHadStatuses.current = true;
+    }
+  }, [statuses]);
   const succeeded = statuses?.filter((status) => status.success).length ?? 0;
   const failed = statuses?.filter((status) => !status.success).length ?? 0;
   const errors = statuses?.flatMap((status) => status.errors) ?? [];

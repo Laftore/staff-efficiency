@@ -1,8 +1,7 @@
-import { VKBotService } from "@/lib/vk";
+import { VKBotService, verifyVkSignature } from "@/lib/vk";
 import type { NextRequest } from "next/server";
 
 const VK_CONFIRMATION_TOKEN = process.env.VK_CONFIRMATION_TOKEN;
-const VK_SECRET = process.env.VK_SECRET;
 
 /**
  * GET handler for VK webhook verification
@@ -23,24 +22,38 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST handler for VK webhook events
+ * POST handler for VK webhook events.
+ * 
+ * Важно: для корректной проверки подписи мы сначала читаем raw body как текст,
+ * затем парсим JSON. Это критично для HMAC.
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Читаем сырое тело для проверки подписи
+    const rawBody = await request.text();
 
-    // Verify signature (optional but recommended)
+    // Проверяем подпись VK (HMAC-SHA256)
     const signature = request.headers.get("X-VK-Signature") || "";
-    if (VK_SECRET && !VKBotService.verifySignature(JSON.stringify(body), signature)) {
-      console.warn("Invalid VK signature");
+    if (!verifyVkSignature(rawBody, signature)) {
+      console.warn("[VK Webhook] Неверная подпись запроса");
       return new Response("Invalid signature", { status: 403 });
     }
 
+    // Парсим тело
+    const body = JSON.parse(rawBody);
+
     const { type, object, group_id, event_id } = body;
 
-    // Handle different event types
+    console.log("[VK Webhook] Получено событие:", { 
+      type, 
+      event_id, 
+      group_id 
+    });
+
+    // Обработка разных типов событий
     switch (type) {
       case "confirmation":
+        console.log("[VK Webhook] Запрос подтверждения");
         return new Response(VK_CONFIRMATION_TOKEN || "OK", { status: 200 });
 
       case "message_new":
@@ -52,85 +65,110 @@ export async function POST(request: NextRequest) {
         break;
 
       case "group_join":
-        console.log("User joined group:", object);
+        console.log("[VK Webhook] Пользователь вступил в группу:", object);
         break;
 
       default:
-        console.log("Unhandled event type:", type);
+        console.log("[VK Webhook] Необработанный тип события:", type);
     }
 
-    // Always return OK to acknowledge receipt
+    // VK требует ответ "OK" в любом случае
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error("VK webhook error:", error);
+    console.error("[VK Webhook] Критическая ошибка обработки:", error);
     return new Response("Internal Server Error", { status: 500 });
   }
 }
 
 /**
- * Handle incoming messages
+ * Обработка нового входящего сообщения
  */
 async function handleMessageNew(message: Record<string, unknown>) {
-  console.log("New message from VK:", {
+  const text = String(message.text || "").trim();
+  const peerId = Number(message.peer_id || message.from_id || 0);
+
+  console.log("[VK Webhook] Новое сообщение:", {
     from_id: message.from_id,
-    text: message.text,
-    peer_id: message.peer_id,
+    peer_id: peerId,
+    text: text.substring(0, 100), // обрезаем для логов
   });
 
-  // Example: Echo message back
-  const text = String(message.text || "");
-  const fromId = Number(message.from_id || 0);
-  const peerId = Number(message.peer_id || fromId);
-
-  if (text.toLowerCase().includes("hello")) {
-    const response = await VKBotService.sendMessage({
+  // Улучшенная реакция на приветствие
+  if (text.toLowerCase().match(/^(привет|hello|hi|здравствуй|добрый)/)) {
+    await VKBotService.sendMessage({
       peer_id: peerId,
-      message: "Привет! 👋 Это bot уведомлений для StaffEfficiency.",
+      message: "Привет! 👋 Я бот уведомлений StaffEfficiency.\n\nНапиши /help, чтобы увидеть команды.\nЧтобы узнать свой Chat ID для настройки уведомлений — используй /myid.",
     });
-
-    if (response) {
-      console.log("Message sent successfully:", response.message_id);
-    }
   }
 
-  // Parse commands if needed
+  // Обработка команд
   if (text.startsWith("/")) {
     await handleCommand(text, peerId);
   }
 }
 
 /**
- * Handle message replies (reactions, etc.)
+ * Обработка ответов на сообщения (пока просто логируем)
  */
 async function handleMessageReply(reply: Record<string, unknown>) {
-  console.log("Message reply:", reply);
+  console.log("[VK Webhook] Ответ на сообщение:", reply);
 }
 
 /**
- * Handle bot commands
+ * Обработка команд бота
  */
 async function handleCommand(command: string, peerId: number) {
   const cmd = command.toLowerCase().split(" ")[0];
+  console.log("[VK Webhook] Выполняется команда:", cmd);
 
   switch (cmd) {
     case "/help":
       await VKBotService.sendMessage({
         peer_id: peerId,
-        message: `📖 Доступные команды:\n/help - эта справка\n/status - статус уведомлений`,
+        message: [
+          "📖 Доступные команды:",
+          "",
+          "/help — эта справка",
+          "/status — статус уведомлений",
+          "/myid — показать твой VK Chat ID (peer_id)",
+          "",
+          "Бот автоматически присылает:",
+          "• Уведомления о новых сменах",
+          "• Предупреждения, когда бонус требует обнуления (Q < 0)",
+          "• Уведомления об обнулении бонуса",
+        ].join("\n"),
       });
       break;
 
     case "/status":
       await VKBotService.sendMessage({
         peer_id: peerId,
-        message: "✅ Уведомления активны. Вы будете получать:\n- Уведомления о новых сменах\n- Расчёты бонусов\n- Ежедневные отчёты",
+        message: [
+          "✅ Уведомления VK Bot активны.",
+          "",
+          "Вы получаете:",
+          "• Уведомления о создании новых смен",
+          "• Предупреждения при needsReset (Q < 0)",
+          "• Уведомления об обнулении бонуса",
+          "",
+          "Ежедневные отчёты — в разработке.",
+          "",
+          "Чтобы настроить получение уведомлений — зайдите в раздел «Филиалы» (доступно только владельцу).",
+        ].join("\n"),
+      });
+      break;
+
+    case "/myid":
+      await VKBotService.sendMessage({
+        peer_id: peerId,
+        message: `Ваш VK Chat ID (peer_id): \`${peerId}\`\n\nСкопируйте это число и укажите его в настройках VK Bot на странице «Филиалы».`,
       });
       break;
 
     default:
       await VKBotService.sendMessage({
         peer_id: peerId,
-        message: "❓ Неизвестная команда. Напишите /help для справки.",
+        message: "❓ Неизвестная команда.\nНапишите /help для списка доступных команд.",
       });
   }
 }

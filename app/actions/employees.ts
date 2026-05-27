@@ -92,6 +92,7 @@ export async function createEmployee(
 
     revalidatePath("/employees");
     revalidatePath("/shifts");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (e) {
     if (e instanceof AuthorizationError) {
@@ -161,6 +162,7 @@ export async function updateEmployee(
 
     revalidatePath("/employees");
     revalidatePath("/shifts");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (e) {
     if (e instanceof AuthorizationError) {

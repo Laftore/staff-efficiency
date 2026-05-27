@@ -29,6 +29,15 @@ export function isSmartshellConfigured(): boolean {
   return Boolean(process.env.SMARTSHELL_API_TOKEN);
 }
 
+/** True when VK Bot is fully configured for sending notifications. */
+export function isVkBotConfigured(): boolean {
+  return Boolean(
+    process.env.VK_BOT_TOKEN &&
+    process.env.VK_GROUP_ID &&
+    process.env.VK_CONFIRMATION_TOKEN
+  );
+}
+
 export function getServerEnv() {
   return serverSchema.parse({
     DATABASE_URL: process.env.DATABASE_URL,

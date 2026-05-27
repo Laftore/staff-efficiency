@@ -16,6 +16,11 @@ export function hasMinimumRole(userRole: AppRole, requiredRole: AppRole): boolea
   return ROLE_RANK[userRole] >= ROLE_RANK[requiredRole];
 }
 
+/**
+ * Только SENIOR_ADMIN и OWNER могут вручную обнулять бонус (Q < 0).
+ * Используется для принудительного сброса в случаях, когда формула даёт отрицательное значение.
+ * ADMIN не имеет доступа к этой операции (как на UI, так и на сервере).
+ */
 export function canResetBonus(role: AppRole): boolean {
   return hasMinimumRole(role, "SENIOR_ADMIN");
 }
