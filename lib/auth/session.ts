@@ -5,11 +5,22 @@ import { isDatabaseConfigured, isSupabaseConfigured } from "@/lib/env";
 import type { AppRole, SessionUser } from "@/types";
 import type { Role } from "@prisma/client";
 
-/** Test-only fast path for E2E (avoids real Supabase dependency). Activated via E2E_AUTH_MOCK=1 or when no real auth possible. */
+/**
+ * E2E Mock Auth (только для development/test)
+ * Никогда не должен работать в production!
+ */
 function getMockSessionUser(): SessionUser | null {
-  // In E2E we set this cookie from auth.setup.ts
-  // (reading synchronously is not possible here; we read via next/headers below in the main function)
-  return null; // resolved in main getSessionUser with cookie access
+  if (process.env.E2E_AUTH_MOCK !== "1" || process.env.NODE_ENV === "production") {
+    return null;
+  }
+
+  try {
+    // Note: cookies() is async in Next.js 15+
+    // This function is called from getSessionUser which already awaits cookies()
+    return null; // resolved in main function
+  } catch {
+    return null;
+  }
 }
 
 function toAppRole(role: Role): AppRole {
@@ -17,16 +28,15 @@ function toAppRole(role: Role): AppRole {
 }
 
 /**
- * Resolves the current user from Supabase session + `profiles` row.
- * Prisma uses service connection; access control is enforced here and via RLS on Supabase client.
+ * Resolves the current user from Supabase session + profiles table.
  *
- * E2E support: when E2E_AUTH_MOCK=1 (or in CI/dev without SERVICE_ROLE_KEY), we use a fast
- * in-memory user derived from the `e2e-test-role` cookie set by auth.setup.ts.
- * This makes E2E tests reliable and fast without requiring real Supabase users or Service Role.
+ * SECURITY: Automatic profile creation is DISABLED.
+ * New users must have their profile created through a controlled process
+ * (e.g. admin panel, onboarding flow, or explicit API).
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
-  // === E2E Mock Auth Path (fast, no external dependencies) ===
-  if (process.env.E2E_AUTH_MOCK === "1") {
+  // === E2E Mock Auth (только dev/test) ===
+  if (process.env.E2E_AUTH_MOCK === "1" && process.env.NODE_ENV !== "production") {
     try {
       const cookieStore = await cookies();
       const role = (cookieStore.get("e2e-test-role")?.value as AppRole | undefined) ?? "ADMIN";
@@ -41,7 +51,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
         displayName: isOwner ? "Test Owner (E2E)" : "Test Admin (E2E)",
       };
     } catch {
-      // During static generation / edge cases — fall through
+      // fall through to real auth
     }
   }
 
@@ -73,20 +83,12 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     include: { branch: true },
   });
 
-  if (!profile && user.email) {
-    profile = await prisma.profile.create({
-      data: {
-        id: user.id,
-        email: user.email,
-        displayName: user.user_metadata?.display_name ?? user.email.split("@")[0],
-        role: "ADMIN",
-        branchId: (user.user_metadata?.branch_id as string | undefined) ?? null,
-      },
-      include: { branch: true },
-    });
-  }
-
+  // SECURITY: Automatic profile creation DISABLED
+  // Previously: if (!profile && user.email) { create with role: "ADMIN" }
+  // This was a major security hole - anyone who could sign up would get ADMIN role.
   if (!profile) {
+    // Log for monitoring (in production this should go to proper logging service)
+    console.warn(`[SECURITY] Profile not found for user ${user.id}. Access denied.`);
     return null;
   }
 
