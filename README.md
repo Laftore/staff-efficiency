@@ -1,5 +1,14 @@
 # 🖥️ StaffEfficiency — Дашборд эффективности администраторов ПК-клуба
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js 16">
+  <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-green?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase">
+  <img src="https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma">
+  <img src="https://img.shields.io/badge/PWA-Ready-5B21B6?style=for-the-badge&logo=pwa&logoColor=white" alt="PWA">
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT License">
+</p>
+
 **Внутренний инструмент для владельца и администраторов 3 филиалов.**  
 Главная ценность: **автоматический расчёт бонуса за смену по выручке** + удобная инвентаризация магазина + интеграция Smartshell (смены, продажи товаров).
 
@@ -13,6 +22,9 @@
 - **Интеграция Smartshell** — импорт смен, каталога товаров и данных о продажах
 - **VK Bot уведомления** — автоматические оповещения владельца и старших администраторов о новых сменах, необходимости обнуления бонуса и его сбросе
 - **Аутентификация Supabase** с RLS (Row-Level Security) для многопользовательской безопасности
+- **Мгновенная обратная связь** — toast-уведомления (sonner) на 100% Server Actions
+- **Профессиональная DataTable** в инвентаризации (поиск, фильтры по категории, сортировка без @tanstack)
+- **Полноценные состояния** — глобальные и секционные `loading.tsx`, `error.tsx`, `not-found.tsx`
 
 ## 🛠 Технический стек
 
@@ -31,68 +43,24 @@
 
 ## 📦 Быстрый старт
 
-### 1️⃣ Клонирование и установка
-
 ```bash
 git clone <repository>
 cd staff-efficiency
 npm install
-```
-
-### 2️⃣ Создание проекта Supabase
-
-1. Перейти на [supabase.com](https://supabase.com)
-2. Создать новый проект
-3. Получить `SUPABASE_URL` и `SUPABASE_ANON_KEY` из Project Settings
-
-### 3️⃣ Конфигурация переменных окружения
-
-```bash
-cp .env.example .env.local
-```
-
-Заполнить:
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx...
-
-# Prisma
-DATABASE_URL=postgresql://xxx:xxx@xxx.supabase.co:5432/postgres
-
-# (опционально) VK Bot
-VK_BOT_TOKEN=xxx
-VK_GROUP_ID=xxx
-VK_CONFIRMATION_TOKEN=xxx
-VK_SECRET=xxx
-```
-
-### 4️⃣ Инициализация БД и Prisma
-
-```bash
-# Генерация Prisma Client
+cp .env.example .env.local   # заполните переменные
 npx prisma generate
-
-# Применение миграций
 npx prisma migrate deploy
-
-# Заполнение БД тестовыми данными
-npx prisma db seed
-```
-
-### 5️⃣ Запуск приложения
-
-```bash
-# Режим разработки
 npm run dev
-
-# Или build + production
-npm run build
-npm start
 ```
 
-Откройте [http://localhost:3000](http://localhost:3000) и отредактируйте `app/page.tsx`.
+**Основные переменные** (см. `.env.example`):
+- `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `DATABASE_URL` (Supabase Postgres)
+- Опционально: VK Bot токены
+
+После запуска приложение доступно на [http://localhost:3000](http://localhost:3000).
+
+> **Инструкция по деплою:** см. [DEPLOY.md](./DEPLOY.md) (Vercel и Docker)
 
 ## 🤖 VK Bot (уведомления)
 
@@ -166,6 +134,20 @@ app/(dashboard)/
 - **Client Components** только где нужна интерактивность (формы, диалоги)
 - **RLS policies** на уровне БД гарантируют безопасность
 
+## 🔒 Security
+
+Проект построен с акцентом на безопасность в multi-tenant среде:
+
+- **Supabase Row Level Security (RLS)** — политики на уровне базы данных для всех таблиц
+- **Серверные проверки доступа** — `getSessionUser()`, `canAccessAllBranches()`, `assertBranchAccess()` в Server Actions
+- **Security Headers** — настроены в `next.config.ts` (`X-Frame-Options: DENY`, `Strict-Transport-Security`, `Referrer-Policy` и др.)
+- **Принцип наименьших привилегий** — каждый пользователь видит данные только своего филиала (кроме OWNER)
+
+**Рекомендации:**
+- Не коммитьте `.env.local` и Service Role Key
+- Используйте `.env.example` как эталон
+- Service Role Key применяется только в доверенном коде (seed, E2E setup)
+
 ## 🧪 Тестирование
 
 ### Тест формулы бонуса
@@ -205,6 +187,25 @@ npm run test:bonus
 - **iOS**: Safari → Поделиться → Добавить на экран
 - **Android**: Меню → "Установить приложение"
 
+## 📸 Скриншоты
+
+> Реальные скриншоты будут добавлены в папку `public/screenshots/`
+
+<div align="center">
+
+### Главный дашборд
+![Dashboard](https://placehold.co/800x450/111113/a855f7?text=Dashboard%0AKPI+%26+Recharts)
+
+### Инвентаризация (DataTable)
+![Inventory](https://placehold.co/800x450/111113/a855f7?text=Inventory%0ASearch+%2B+Filters+%2B+Sorting)
+
+### PWA на мобильном устройстве
+![PWA Mobile](https://placehold.co/400x700/111113/a855f7?text=PWA%0Aon+Mobile)
+
+</div>
+
+---
+
 ## 🎨 Стиль и тема
 
 **Кибер-тёмная тема** по умолчанию:
@@ -216,8 +217,10 @@ npm run test:bonus
 
 ## 📚 Дополнительная информация
 
-- [PRD.md](./PRD.md) — Полная спецификация проекта
-- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — Текущий статус разработки и todo-лист
+- [LICENSE](./LICENSE) — MIT License
+- [SECURITY.md](./SECURITY.md) — Политика безопасности
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — Правила участия в разработке
+- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — Текущий статус разработки и история спринтов
 
 ## 🛠 Полезные команды
 
@@ -236,4 +239,4 @@ npm run test:bonus
 
 ## 📝 Лицензия
 
-Internal use only.
+Проект распространяется под лицензией MIT. См. [LICENSE](./LICENSE).

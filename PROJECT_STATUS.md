@@ -275,10 +275,104 @@
 
 ---
 
-**Последнее обновление:** 27 мая 2026, 14:40 UTC  
+**Последнее обновление:** 27 мая 2026, 15:30 UTC  
 **Разработчик:** Grok (xAI)
 
-**Спринт 27 мая 2026 — полностью завершён**  
-PRIORITY 4 (UX Polish) + PRIORITY 3 (VK Bot) + финальная полировка
+---
 
-Все проверки пройдены. Код в хорошем состоянии.
+## ✅ COMPLETED (27 мая 2026) — PRIORITY 5: Audit & Code Cleanup ✓
+
+**Полный аудит качества кода и репозитория** (Grok, 27 мая 2026)
+
+### Выполненные улучшения
+
+**1. Очистка репозитория**
+- `.cursor/` — уже отсутствовала
+- `AGENTS.md`, `CLAUDE.md` — уже отсутствовали
+- `PRD.md` — уже отсутствовал (устаревший)
+- Удалены неиспользуемые файлы: `public/next.svg`, `public/vercel.svg`
+- `prisma/dev.db` удалён из репозитория + добавлен в `.gitignore`
+
+**2. package.json**
+- Удалена неиспользуемая зависимость `radix-ui`
+- Добавлена секция `engines: { "node": ">=20.18.0" }`
+- Добавлен скрипт `lint:fix`
+
+**3. next.config.ts**
+- Удалён пустой `turbopack: {}` (с последующим возвратом минимальной заглушки для совместимости с @serwist/next в Next 16)
+- Добавлены production security headers:
+  - `X-Frame-Options: DENY`
+  - `X-Content-Type-Options: nosniff`
+  - `Referrer-Policy`
+  - `Strict-Transport-Security`
+  - `X-DNS-Prefetch-Control`
+
+**4. Стандартные Next.js файлы**
+- Создан `app/not-found.tsx` (глобальный 404 в кибер-стиле)
+- Создан `app/(dashboard)/not-found.tsx` (для защищённой зоны дашборда)
+
+**5. .gitignore (улучшен)**
+- `prisma/*.db` + `prisma/dev.db`
+- `public/sw.js` (генерируемый)
+- `public/sw.js.map`
+- `/test-results` и `playwright-report/`
+
+**6. Проверки**
+- `npm run build` — ✅ успешно (после финальной корректировки turbopack workaround)
+- `npm run test:bonus` (через vitest) — ✅ 31 тест пройден (все зелёные)
+- `lib/kpi/bonus.ts` — ни разу не изменён
+- Multi-tenant + роли — не затронуты (аудит не касался бизнес-логики)
+
+### Что улучшено в целом
+- Репозиторий стал чище и production-ready
+- Улучшена безопасность HTTP-заголовков
+- Устранены потенциальные источники утечки локальных данных (dev.db, сгенерированный SW)
+- Добавлены недостающие стандартные файлы Next.js 16
+- Скрипты для разработчиков расширены (`lint:fix`)
+
+---
+
+**Последнее обновление:** 27 мая 2026, 15:45 UTC  
+**Разработчик:** Grok (xAI)
+
+## ✅ COMPLETED (27 мая 2026) — PRIORITY 6: Final Polish (README + Professional Files) ✓
+
+**Финальная полировка проекта** (Grok, 27 мая 2026)
+
+### Выполненные работы
+
+**1. README.md — значительное улучшение**
+- Добавлены красивые бейджи в стиле `for-the-badge` (тёмная тема)
+- Добавлен компактный раздел **«🔒 Security»** после Архитектуры
+- Добавлены упоминания фич PRIORITY 4:
+  - sonner (toast-уведомления на 100% Server Actions)
+  - Нативная DataTable в `/inventory`
+  - Полноценные `loading.tsx` / `error.tsx` / `not-found.tsx`
+- Добавлен раздел **«📸 Скриншоты»** с красивыми markdown-карточками-заглушками
+- Сделан «Быстрый старт» значительно более компактным
+- Добавлены ссылки на новые профессиональные файлы
+
+**2. Профессиональные файлы**
+- Создана структура `.github/`:
+  - `pull_request_template.md`
+  - `ISSUE_TEMPLATE/bug_report.md`
+  - `ISSUE_TEMPLATE/feature_request.md`
+- Создан `LICENSE` (MIT License)
+- Создан компактный `SECURITY.md` (~25 строк)
+- Создан короткий `CONTRIBUTING.md` (правила коммитов + процесс PR)
+- Создана папка-заглушка `public/screenshots/` с `.gitkeep`
+
+**3. Исправление лицензии**
+- Заменена закрытая лицензия «Internal Use Only» на **MIT License** (стандартная открытая лицензия).
+- Обновлены бейдж и упоминания в README.md.
+- Проект теперь полностью соответствует требованиям публичного репозитория на GitHub.
+
+### Проверки
+- `npm run build` — ✅
+- `npm run test:bonus` — ✅ 31/31
+- `lib/kpi/bonus.ts` — не изменён
+
+**Спринт 27 мая 2026 — полностью завершён**  
+PRIORITY 4 + PRIORITY 3 + PRIORITY 5 + PRIORITY 6 (Final Polish)
+
+Проект теперь выглядит профессионально и готов к использованию.

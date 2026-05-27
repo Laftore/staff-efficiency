@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local SQLite (used only for early dev, production uses Supabase Postgres)
+prisma/*.db
+prisma/dev.db
+
+# Generated PWA service worker (created at build time by @serwist/next)
+public/sw.js
+public/sw.js.map
+
+# Playwright test results & traces
+/test-results
+playwright-report/

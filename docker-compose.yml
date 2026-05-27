@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  staff-efficiency:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - DIRECT_URL=${DIRECT_URL}
+      # VK Bot (optional)
+      - VK_BOT_TOKEN=${VK_BOT_TOKEN}
+      - VK_GROUP_ID=${VK_GROUP_ID}
+      - VK_CONFIRMATION_TOKEN=${VK_CONFIRMATION_TOKEN}
+      - VK_SECRET=${VK_SECRET}
+    restart: unless-stopped
+    # If you need to run migrations on startup (not recommended for production)
+    # command: sh -c "npx prisma migrate deploy && node server.js"

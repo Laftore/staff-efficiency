@@ -4,7 +4,45 @@ const withSerwist = require("@serwist/next").default;
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  // Recommended for Docker / standalone deployments
+  output: 'standalone',
+
+  // Workaround for Next.js 16 + @serwist/next (webpack plugin) conflict.
+  // Empty object tells Next to stay in Turbopack mode cleanly.
+  // See: https://github.com/serwist/serwist/issues/54
   turbopack: {},
+
+  // Security headers (production-ready dashboard)
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "origin-when-cross-origin",
+          },
+          {
+            key: "X-DNS-Prefetch-Control",
+            value: "on",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default withSerwist({
