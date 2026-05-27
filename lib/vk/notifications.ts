@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { AppRole } from "@/types";
 import { VKClient } from "./client";
 import type { VKMessage } from "./types";
+import { isFeatureEnabled } from "@/lib/feature-flags/feature-flags.service";
 
 /**
  * Результат отправки уведомления.
@@ -10,6 +11,7 @@ export type NotificationResult = {
   success: boolean;
   sentCount?: number;
   error?: string;
+  skipped?: boolean; // true if the notification was skipped due to feature flag
 };
 
 /**
@@ -76,6 +78,21 @@ export async function getVkRecipients(branchId?: string) {
  * Выручка: 18 450 ₽
  */
 export async function notifyNewShiftCreated(shiftId: string): Promise<NotificationResult> {
+  console.log("[VK Bot] Sending notification", {
+    type: "new_shift_created",
+    shiftId,
+  });
+
+  const notificationsEnabled = await isFeatureEnabled("VK_NOTIFICATIONS_ENABLED");
+
+  if (!notificationsEnabled) {
+    console.log("[VK Bot] Notification skipped - VK notifications are disabled by feature flag", {
+      type: "new_shift_created",
+      shiftId,
+    });
+    return { success: true, sentCount: 0, skipped: true };
+  }
+
   try {
     const shift = await prisma.shift.findUnique({
       where: { id: shiftId },
@@ -86,10 +103,18 @@ export async function notifyNewShiftCreated(shiftId: string): Promise<Notificati
     });
 
     if (!shift) {
+      console.warn("[VK Bot] Notification skipped - shift not found", { shiftId, type: "new_shift_created" });
       return { success: false, error: "Shift not found" };
     }
 
     const recipients = await getVkRecipients(shift.branchId);
+
+    console.log("[VK Bot] Recipients resolved", {
+      type: "new_shift_created",
+      shiftId,
+      branchId: shift.branchId,
+      recipientsCount: recipients.length,
+    });
 
     if (recipients.length === 0) {
       return { success: true, sentCount: 0 };
@@ -117,9 +142,21 @@ export async function notifyNewShiftCreated(shiftId: string): Promise<Notificati
       if (result) sentCount++;
     }
 
+    console.log("[VK Bot] Notification sent", {
+      type: "new_shift_created",
+      shiftId,
+      branchId: shift.branchId,
+      sentCount,
+      totalRecipients: recipients.length,
+    });
+
     return { success: true, sentCount };
   } catch (error) {
-    console.error("[VK] notifyNewShiftCreated error:", error);
+    console.error("[VK Bot] Notification failed", {
+      type: "new_shift_created",
+      shiftId,
+      error: String(error),
+    });
     return { success: false, error: String(error) };
   }
 }
@@ -138,6 +175,21 @@ export async function notifyNewShiftCreated(shiftId: string): Promise<Notificati
  * Рекомендуется обнулить бонус вручную.
  */
 export async function notifyBonusNeedsReset(shiftId: string): Promise<NotificationResult> {
+  console.log("[VK Bot] Sending notification", {
+    type: "bonus_needs_reset",
+    shiftId,
+  });
+
+  const notificationsEnabled = await isFeatureEnabled("VK_NOTIFICATIONS_ENABLED");
+
+  if (!notificationsEnabled) {
+    console.log("[VK Bot] Notification skipped - VK notifications are disabled by feature flag", {
+      type: "bonus_needs_reset",
+      shiftId,
+    });
+    return { success: true, sentCount: 0, skipped: true };
+  }
+
   try {
     const shift = await prisma.shift.findUnique({
       where: { id: shiftId },
@@ -148,10 +200,18 @@ export async function notifyBonusNeedsReset(shiftId: string): Promise<Notificati
     });
 
     if (!shift) {
+      console.warn("[VK Bot] Notification skipped - shift not found", { shiftId, type: "bonus_needs_reset" });
       return { success: false, error: "Shift not found" };
     }
 
     const recipients = await getVkRecipients(shift.branchId);
+
+    console.log("[VK Bot] Recipients resolved", {
+      type: "bonus_needs_reset",
+      shiftId,
+      branchId: shift.branchId,
+      recipientsCount: recipients.length,
+    });
 
     if (recipients.length === 0) {
       return { success: true, sentCount: 0 };
@@ -182,9 +242,21 @@ export async function notifyBonusNeedsReset(shiftId: string): Promise<Notificati
       if (result) sentCount++;
     }
 
+    console.log("[VK Bot] Notification sent", {
+      type: "bonus_needs_reset",
+      shiftId,
+      branchId: shift.branchId,
+      sentCount,
+      totalRecipients: recipients.length,
+    });
+
     return { success: true, sentCount };
   } catch (error) {
-    console.error("[VK] notifyBonusNeedsReset error:", error);
+    console.error("[VK Bot] Notification failed", {
+      type: "bonus_needs_reset",
+      shiftId,
+      error: String(error),
+    });
     return { success: false, error: String(error) };
   }
 }
@@ -201,6 +273,21 @@ export async function notifyBonusNeedsReset(shiftId: string): Promise<Notificati
  * Бонус установлен в 0 ₽
  */
 export async function notifyBonusWasReset(shiftId: string): Promise<NotificationResult> {
+  console.log("[VK Bot] Sending notification", {
+    type: "bonus_was_reset",
+    shiftId,
+  });
+
+  const notificationsEnabled = await isFeatureEnabled("VK_NOTIFICATIONS_ENABLED");
+
+  if (!notificationsEnabled) {
+    console.log("[VK Bot] Notification skipped - VK notifications are disabled by feature flag", {
+      type: "bonus_was_reset",
+      shiftId,
+    });
+    return { success: true, sentCount: 0, skipped: true };
+  }
+
   try {
     const shift = await prisma.shift.findUnique({
       where: { id: shiftId },
@@ -211,10 +298,18 @@ export async function notifyBonusWasReset(shiftId: string): Promise<Notification
     });
 
     if (!shift) {
+      console.warn("[VK Bot] Notification skipped - shift not found", { shiftId, type: "bonus_was_reset" });
       return { success: false, error: "Shift not found" };
     }
 
     const recipients = await getVkRecipients(shift.branchId);
+
+    console.log("[VK Bot] Recipients resolved", {
+      type: "bonus_was_reset",
+      shiftId,
+      branchId: shift.branchId,
+      recipientsCount: recipients.length,
+    });
 
     if (recipients.length === 0) {
       return { success: true, sentCount: 0 };
@@ -241,9 +336,21 @@ export async function notifyBonusWasReset(shiftId: string): Promise<Notification
       if (result) sentCount++;
     }
 
+    console.log("[VK Bot] Notification sent", {
+      type: "bonus_was_reset",
+      shiftId,
+      branchId: shift.branchId,
+      sentCount,
+      totalRecipients: recipients.length,
+    });
+
     return { success: true, sentCount };
   } catch (error) {
-    console.error("[VK] notifyBonusWasReset error:", error);
+    console.error("[VK Bot] Notification failed", {
+      type: "bonus_was_reset",
+      shiftId,
+      error: String(error),
+    });
     return { success: false, error: String(error) };
   }
 }

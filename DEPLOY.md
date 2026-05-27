@@ -51,17 +51,33 @@
 
 ### Шаг 5: Prisma миграции в продакшене
 
-После первого деплоя выполните миграции:
+После первого деплоя обязательно выполните миграции:
 
 ```bash
-# В терминале Vercel (или локально с production DATABASE_URL)
 npx prisma migrate deploy
 ```
 
-Или добавьте в **Post-Install Command**:
+Это создаст новые таблицы, появившиеся после P2:
+- `audit_logs` (Audit Log)
+- `feature_flags` (Feature Flags)
+
+**Рекомендация:** Добавьте `npx prisma migrate deploy` в **Post-Install Command** в настройках Vercel, чтобы миграции применялись автоматически при каждом деплое.
+
+### Шаг 5.1: Инициализация Feature Flags
+
+После применения миграций рекомендуется инициализировать дефолтные feature flags:
+
 ```bash
-npx prisma migrate deploy
+npx prisma db seed
 ```
+
+Или вручную создайте записи в таблице `feature_flags`:
+- `VK_NOTIFICATIONS_ENABLED` = `true` (глобально)
+- `BONUS_RESET_CONFIRMATION` = `false` (глобально)
+- `AUDIT_LOG_ENABLED` = `true` (глобально) — рекомендуется оставить включённым
+- `ENHANCED_INVENTORY_UI` = `false` (глобально)
+
+Это позволит сразу управлять уведомлениями, подтверждениями, аудитом и будущими UI-фичами без изменения кода.
 
 ### Шаг 6: Регион и авто-деплой
 
@@ -149,6 +165,8 @@ staff.yourdomain.com {
 - [ ] ADMIN видит только свой филиал
 - [ ] Создание смены и расчёт бонуса работают
 - [ ] Инвентаризация сохраняет данные
+- [ ] VK Bot уведомления работают (если включён флаг `VK_NOTIFICATIONS_ENABLED`)
+- [ ] Audit Log доступен на странице `/audit` (для OWNER)
 
 ---
 

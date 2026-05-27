@@ -4,18 +4,6 @@ import type { SessionUser } from '@/types';
 
 // Mock dependencies before imports
 vi.mock('@/lib/auth/session');
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    shift: {
-      create: vi.fn(),
-      update: vi.fn(),
-      findUnique: vi.fn(),
-    },
-    employee: {
-      findFirst: vi.fn(),
-    },
-  },
-}));
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
@@ -28,13 +16,20 @@ vi.mock('@/lib/env', () => ({
   isDatabaseConfigured: vi.fn(() => true),
 }));
 
+// Mock the service layer (this is the key change after P1 service extraction)
+vi.mock('@/lib/shifts/shift.service', () => ({
+  createShift: vi.fn(),
+  updateShift: vi.fn(),
+  resetShiftBonus: vi.fn(),
+}));
+
 import { getSessionUser } from '@/lib/auth/session';
-import { prisma } from '@/lib/prisma';
 import {
   notifyNewShiftCreated,
   notifyBonusNeedsReset,
   notifyBonusWasReset,
 } from '@/lib/vk/notifications';
+import { createShift, updateShift, resetShiftBonus as resetBonusService } from '@/lib/shifts/shift.service';
 
 // Test users
 const ownerUser: SessionUser = {
@@ -74,10 +69,13 @@ describe('saveShift - Server Action', () => {
     vi.clearAllMocks();
   });
 
-  it('should allow OWNER to create shift in any branch', async () => {
+  it('should allow OWNER to create shift and call service + notifications', async () => {
     vi.mocked(getSessionUser).mockResolvedValue(ownerUser);
-    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ id: 'emp-1', branchId: 'branch-1' } as any);
-    vi.mocked(prisma.shift.create).mockResolvedValue({ id: 'shift-123' } as any);
+    vi.mocked(createShift).mockResolvedValue({
+      success: true,
+      shiftId: 'shift-123',
+      needsReset: false,
+    } as any);
 
     const formData = new FormData();
     formData.set('branchId', 'branch-1');
@@ -90,46 +88,46 @@ describe('saveShift - Server Action', () => {
     const result = await saveShift(null, formData);
 
     expect(result.success).toBe(true);
-    expect(prisma.shift.create).toHaveBeenCalled();
+    expect(createShift).toHaveBeenCalledWith(
+      ownerUser,
+      expect.objectContaining({ branchId: 'branch-1' })
+    );
     expect(notifyNewShiftCreated).toHaveBeenCalledWith('shift-123');
+    expect(notifyBonusNeedsReset).not.toHaveBeenCalled();
   });
 
-  it('should prevent ADMIN from creating shift in another branch', async () => {
-    vi.mocked(getSessionUser).mockResolvedValue(adminOtherBranch);
-
-    const formData = new FormData();
-    formData.set('branchId', 'branch-1'); // Different from admin's branch
-    formData.set('employeeId', 'emp-1');
-    formData.set('date', '2026-05-27');
-    formData.set('type', 'DAY');
-    formData.set('revenueTariff', '15000');
-    formData.set('revenueGoods', '0');
-
-    const result = await saveShift(null, formData);
-
-    expect(result.success).toBeUndefined();
-    expect(result.error).toBe('Нет доступа к этому филиалу');
-    expect(prisma.shift.create).not.toHaveBeenCalled();
-  });
-
-  it('should calculate bonus and set needsReset flag correctly on creation', async () => {
+  it('should trigger notifyBonusNeedsReset when service returns needsReset=true', async () => {
     vi.mocked(getSessionUser).mockResolvedValue(seniorAdminUser);
-    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ id: 'emp-1', branchId: 'branch-1' } as any);
-    vi.mocked(prisma.shift.create).mockResolvedValue({ id: 'shift-456' } as any);
+    vi.mocked(createShift).mockResolvedValue({
+      success: true,
+      shiftId: 'shift-456',
+      needsReset: true,
+    } as any);
 
     const formData = new FormData();
     formData.set('branchId', 'branch-1');
     formData.set('employeeId', 'emp-1');
     formData.set('date', '2026-05-27');
     formData.set('type', 'DAY');
-    formData.set('revenueTariff', '5000'); // Much lower than 15000 plan
+    formData.set('revenueTariff', '5000');
     formData.set('revenueGoods', '0');
 
     const result = await saveShift(null, formData);
 
     expect(result.success).toBe(true);
-    // The action should have called notifyBonusNeedsReset because revenue is low
     expect(notifyBonusNeedsReset).toHaveBeenCalledWith('shift-456');
+  });
+
+  it('should return validation error without calling service', async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(ownerUser);
+
+    const formData = new FormData(); // missing required fields
+    formData.set('branchId', 'branch-1');
+
+    const result = await saveShift(null, formData);
+
+    expect(result.error).toBeDefined();
+    expect(createShift).not.toHaveBeenCalled();
   });
 });
 
@@ -138,40 +136,35 @@ describe('resetShiftBonus - Server Action', () => {
     vi.clearAllMocks();
   });
 
-  it('should allow SENIOR_ADMIN to reset bonus only in their branch', async () => {
+  it('should call service and trigger notification on success', async () => {
     vi.mocked(getSessionUser).mockResolvedValue(seniorAdminUser);
-    vi.mocked(prisma.shift.findUnique).mockResolvedValue({
-      id: 'shift-1',
-      branchId: 'branch-1',
-    } as any);
-    vi.mocked(prisma.shift.update).mockResolvedValue({} as any);
+    vi.mocked(resetBonusService).mockResolvedValue({ success: true });
 
     const result = await resetShiftBonus('shift-1');
 
     expect(result.success).toBe(true);
+    expect(resetBonusService).toHaveBeenCalledWith(seniorAdminUser, 'shift-1');
     expect(notifyBonusWasReset).toHaveBeenCalledWith('shift-1');
   });
 
-  it('should prevent ADMIN from resetting bonus', async () => {
-    vi.mocked(getSessionUser).mockResolvedValue(adminUser);
+  it('should return requiresConfirmation without notification or revalidate when service signals confirmation needed', async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(seniorAdminUser);
+    vi.mocked(resetBonusService).mockResolvedValue({ requiresConfirmation: true });
 
     const result = await resetShiftBonus('shift-1');
 
+    expect(result.requiresConfirmation).toBe(true);
     expect(result.success).toBeUndefined();
-    expect(result.error).toBe('Недостаточно прав для обнуления бонуса');
-    expect(prisma.shift.update).not.toHaveBeenCalled();
+    expect(notifyBonusWasReset).not.toHaveBeenCalled();
   });
 
-  it('should prevent user from resetting bonus in another branch', async () => {
-    vi.mocked(getSessionUser).mockResolvedValue(seniorAdminUser); // branch-1
-    vi.mocked(prisma.shift.findUnique).mockResolvedValue({
-      id: 'shift-99',
-      branchId: 'branch-2', // different branch
-    } as any);
+  it('should return error from service without calling notification', async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(adminUser);
+    vi.mocked(resetBonusService).mockRejectedValue(new Error('Недостаточно прав для обнуления бонуса'));
 
-    const result = await resetShiftBonus('shift-99');
+    const result = await resetShiftBonus('shift-1');
 
-    expect(result.success).toBeUndefined();
-    expect(result.error).toBe('Нет доступа к этому филиалу');
+    expect(result.error).toBeDefined();
+    expect(notifyBonusWasReset).not.toHaveBeenCalled();
   });
 });

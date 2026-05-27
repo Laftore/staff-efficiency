@@ -50,6 +50,13 @@ export async function syncSmartshellBranchData(
 ): Promise<SmartshellSyncStatus> {
   const fromIso = typeof from === "string" ? from : from.toISOString();
   const toIso = typeof to === "string" ? to : to.toISOString();
+
+  console.log("[Smartshell] Starting branch sync", {
+    branchId,
+    from: fromIso,
+    to: toIso,
+  });
+
   const status: SmartshellSyncStatus = {
     operation: "branchSync",
     branchId,
@@ -62,6 +69,11 @@ export async function syncSmartshellBranchData(
     const result = await retryAsync(() => syncSmartshellShiftsRaw(branchId, fromIso, toIso), 2);
     status.count = result.count;
 
+    console.log("[Smartshell] Shifts synced", {
+      branchId,
+      shiftsCount: result.count,
+    });
+
     const importedShifts = await prisma.shift.findMany({
       where: {
         branchId,
@@ -71,6 +83,11 @@ export async function syncSmartshellBranchData(
         },
       },
       select: { id: true },
+    });
+
+    console.log("[Smartshell] Starting inventory sync for shifts", {
+      branchId,
+      shiftsToSync: importedShifts.length,
     });
 
     const inventoryResults = await Promise.all(
@@ -90,19 +107,24 @@ export async function syncSmartshellBranchData(
       data: { smartshellLastSyncAt: status.lastSyncedAt },
     });
 
-    console.info("Smartshell branch sync succeeded", {
+    console.log("[Smartshell] Branch sync succeeded", {
       branchId,
-      count: status.count,
+      shiftsCount: status.count,
       salesCount: status.salesCount,
       lastSyncedAt: status.lastSyncedAt.toISOString(),
     });
+
+    return status;
   } catch (error) {
     const message = String(error instanceof Error ? error.message : error ?? "Unknown error");
     status.errors.push(message);
-    console.error("Smartshell branch sync failed", {
+
+    console.error("[Smartshell] Branch sync failed", {
       branchId,
       error: message,
     });
+
+    return status;
   }
 
   return status;

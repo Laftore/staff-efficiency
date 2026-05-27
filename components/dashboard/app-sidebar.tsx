@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, LayoutDashboard, Package, Users, Zap } from "lucide-react";
+import { Building2, History, LayoutDashboard, Package, Users, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const baseNavItems = [
@@ -18,13 +18,20 @@ const ownerNavItem = {
   icon: Building2,
 } as const;
 
+const ownerAuditItem = {
+  href: "/audit",
+  label: "Аудит",
+  icon: History,
+} as const;
+
 interface AppSidebarProps {
   showBranches?: boolean;
 }
 
 export function AppSidebar({ showBranches = false }: AppSidebarProps) {
   const pathname = usePathname();
-  const navItems = showBranches ? [...baseNavItems, ownerNavItem] : baseNavItems;
+  const ownerItems = showBranches ? [ownerNavItem, ownerAuditItem] : [];
+  const navItems = [...baseNavItems, ...ownerItems];
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border/60 bg-sidebar">

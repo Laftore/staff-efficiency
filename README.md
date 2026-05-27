@@ -125,7 +125,8 @@ app/(dashboard)/
   ├─ shifts/           → Смены (CRUD, бонус)
   ├─ inventory/        → Инвентаризация (live расчёты)
   ├─ employees/        → Сотрудники (CRUD)
-  └─ branches/         → Филиалы (CRUD, только для OWNER)
+  ├─ branches/         → Филиалы (CRUD, только для OWNER)
+  └─ audit/            → Журнал аудита действий (только OWNER)
 ```
 
 Каждая страница:
@@ -133,6 +134,17 @@ app/(dashboard)/
 - **Server Actions** для мутаций (create/update/delete)
 - **Client Components** только где нужна интерактивность (формы, диалоги)
 - **RLS policies** на уровне БД гарантируют безопасность
+
+### Архитектура после P1/P2
+
+Проект следует гибридному подходу:
+
+- **Тонкие Server Actions** — только валидация + вызов сервиса + side effects (`withAction`)
+- **Сервисный слой** — основная бизнес-логика и авторизация:
+  - `lib/shifts/shift.service.ts`
+  - `lib/inventory/inventory.service.ts`
+- **Audit Log** — все важные действия логируются (`lib/audit/audit.service.ts`)
+- **Feature Flags** — гибкое управление функциональностью (`lib/feature-flags/feature-flags.service.ts`)
 
 ## 🔒 Security
 
@@ -148,19 +160,58 @@ app/(dashboard)/
 - Используйте `.env.example` как эталон
 - Service Role Key применяется только в доверенном коде (seed, E2E setup)
 
+## 📋 Audit Log
+
+Система логирования важных действий в проекте:
+
+- Автоматически логируются: создание/изменение смен, сброс бонусов, изменение ролей, сохранение инвентаризации.
+- Доступ к полному журналу есть только у **OWNER**.
+- Страница: `/audit` (с фильтрами по филиалу, типу действия и датам).
+
+Сервис: `lib/audit/audit.service.ts`
+
+## 🚩 Feature Flags
+
+Простая система feature flags с поддержкой глобальных и per-branch значений:
+
+- `VK_NOTIFICATIONS_ENABLED` — глобальное включение/отключение VK Bot уведомлений
+- `BONUS_RESET_CONFIRMATION` — требует дополнительного подтверждения при сбросе бонуса
+- `AUDIT_LOG_ENABLED` — kill-switch для Audit Log (по умолчанию включён)
+- `ENHANCED_INVENTORY_UI` — зарезервирован для прогрессивного улучшения UI инвентаризации
+
+Использование:
+```ts
+import { isFeatureEnabled } from "@/lib/feature-flags/feature-flags.service";
+
+const enabled = await isFeatureEnabled("VK_NOTIFICATIONS_ENABLED", branchId);
+```
+
+Сервис: `lib/feature-flags/feature-flags.service.ts`
+
 ## 🧪 Тестирование
 
-### Тест формулы бонуса
+### Unit-тесты формулы бонуса
 
 ```bash
 npm run test:bonus
 ```
 
-Проверяет:
-- Корректность вычисления процента превышения плана (O)
-- Расчёт базового бонуса (P) по формулам
-- Финальный бонус (Q) с корректировками
-- Флаг `needsReset` для смен с отрицательным бонусом
+### Тесты сервисов и Server Actions
+
+```bash
+npx vitest run
+```
+
+Покрытие включает:
+- `shift.service.ts` и `inventory.service.ts` (мульти-тенантность, роли, авторизация)
+- Server Actions с использованием `withAction`
+- Интеграцию с Audit Log и Feature Flags
+
+### E2E-тесты
+
+```bash
+npm run test:e2e
+```
 
 ## 🔌 Интеграция Smartshell
 

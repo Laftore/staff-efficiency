@@ -23,6 +23,8 @@ import {
   type UpdateEmployeeValues,
 } from "@/lib/validations/employee";
 
+import { logAction, AuditAction } from "@/lib/audit/audit.service";
+
 export type EmployeeActionResult = { error?: string; success?: boolean };
 
 function assertCanManageEmployees(role: AppRole): void {
@@ -86,6 +88,19 @@ export async function createEmployee(
         await tx.profile.update({
           where: { id: profile.id },
           data: { role, branchId },
+        });
+
+        await logAction({
+          user,
+          action: AuditAction.ROLE_CHANGED,
+          entityType: "PROFILE",
+          entityId: profile.id,
+          branchId,
+          details: {
+            newRole: role,
+            previousRole: profile.role,
+            linkedToEmployee: true,
+          },
         });
       }
     });
@@ -153,9 +168,24 @@ export async function updateEmployee(
       });
 
       if (newProfile) {
+        const previousRole = existing.profile?.role ?? "UNKNOWN";
+
         await tx.profile.update({
           where: { id: newProfile.id },
           data: { role, branchId },
+        });
+
+        await logAction({
+          user,
+          action: AuditAction.ROLE_CHANGED,
+          entityType: "PROFILE",
+          entityId: newProfile.id,
+          branchId,
+          details: {
+            newRole: role,
+            previousRole,
+            linkedToEmployee: true,
+          },
         });
       }
     });

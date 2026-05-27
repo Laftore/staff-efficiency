@@ -19,6 +19,7 @@ model Branch {
   employees          Employee[]
   profiles           Profile[]
   shifts             Shift[]
+  featureFlags       FeatureFlag[]
 
   @@map("branches")
 }
@@ -116,4 +117,51 @@ model InventoryItem {
 
   @@index([shiftId])
   @@map("inventory_items")
+}
+
+/// Лог важных действий в системе (для прозрачности и аудита).
+/// Особенно критично для действий с бонусами и изменения ролей.
+model AuditLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  /// Кто совершил действие
+  actorId     String   @map("actor_id")
+  actorRole   Role     @map("actor_role")     // Роль на момент действия (снимок)
+  actorName   String?  @map("actor_name")     // Для удобства отображения
+
+  /// Что было сделано
+  action      String   @map("action")         // Например: "SHIFT_BONUS_RESET", "SHIFT_CREATED", "ROLE_CHANGED"
+  entityType  String   @map("entity_type")    // "SHIFT", "EMPLOYEE", "PROFILE"
+  entityId    String   @map("entity_id")
+
+  /// Контекст multi-tenant
+  branchId    String?  @map("branch_id")
+
+  /// Дополнительные данные (гибко)
+  details     Json?    @map("details")        // before/after, причина и т.д.
+
+  @@index([branchId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+/// Простая система Feature Flags.
+/// Поддерживает глобальные флаги (branchId = null) и переопределения по филиалу.
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String
+  enabled     Boolean  @default(false)
+  description String?
+  branchId    String?  @map("branch_id")
+  branch      Branch?  @relation(fields: [branchId], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([key, branchId])
+  @@index([branchId])
+  @@index([key])
+  @@map("feature_flags")
 }

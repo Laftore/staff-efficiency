@@ -3,6 +3,48 @@ import type { NextRequest } from "next/server";
 
 const VK_CONFIRMATION_TOKEN = process.env.VK_CONFIRMATION_TOKEN;
 
+// ===================== Простой Rate Limiter =====================
+// Ограничиваем количество сообщений от одного peer_id (пользователя/чата)
+// Защита от флуда/спама в бота
+
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 минута
+const RATE_LIMIT_MAX_REQUESTS = 10;     // максимум 10 запросов в минуту от одного peer_id
+
+const rateLimitStore = new Map<number, { count: number; resetTime: number }>();
+
+function checkRateLimit(peerId: number): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  let entry = rateLimitStore.get(peerId);
+
+  if (!entry || now > entry.resetTime) {
+    // Новое окно
+    rateLimitStore.set(peerId, {
+      count: 1,
+      resetTime: now + RATE_LIMIT_WINDOW_MS,
+    });
+    return { allowed: true };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  entry.count += 1;
+  return { allowed: true };
+}
+
+// Периодическая очистка старых записей (чтобы Map не рос бесконечно)
+setInterval(() => {
+  const now = Date.now();
+  for (const [peerId, entry] of rateLimitStore.entries()) {
+    if (now > entry.resetTime) {
+      rateLimitStore.delete(peerId);
+    }
+  }
+}, 5 * 60 * 1000); // чистим раз в 5 минут
+
+
 /**
  * GET handler for VK webhook verification
  * VK sends a confirmation request with action=confirmation
@@ -49,6 +91,30 @@ export async function POST(request: NextRequest) {
       event_id, 
       group_id 
     });
+
+    // Rate Limiting по peer_id для сообщений (защита от спама)
+    if (type === "message_new") {
+      const peerId = Number(object?.message?.peer_id || object?.peer_id || 0);
+
+      if (peerId > 0) {
+        const rateLimitResult = checkRateLimit(peerId);
+
+        if (!rateLimitResult.allowed) {
+          console.warn("[VK Webhook] Rate limit exceeded", {
+            peerId,
+            type,
+            retryAfterSeconds: rateLimitResult.retryAfter,
+          });
+
+          return new Response("Too Many Requests", {
+            status: 429,
+            headers: {
+              "Retry-After": String(rateLimitResult.retryAfter || 60),
+            },
+          });
+        }
+      }
+    }
 
     // Обработка разных типов событий
     switch (type) {

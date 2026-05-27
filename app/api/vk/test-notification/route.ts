@@ -54,12 +54,16 @@ export async function GET(request: NextRequest) {
         );
     }
 
+    const message = result.skipped
+      ? "Тестовое уведомление пропущено (флаг VK_NOTIFICATIONS_ENABLED выключен)"
+      : "Тестовое уведомление отправлено (если у получателей настроен vkChatId)";
+
     return NextResponse.json({
       success: true,
       type,
       shiftId,
       result,
-      message: "Тестовое уведомление отправлено (если у получателей настроен vkChatId)",
+      message,
     });
   } catch (error) {
     console.error("[VK Test] Ошибка отправки тестового уведомления:", error);

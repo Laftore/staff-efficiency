@@ -39,26 +39,60 @@ export async function fetchSmartshellShifts(
 
 export async function fetchSmartshellProducts(branchId: string): Promise<SmartshellProduct[]> {
   if (!isSmartshellConfigured()) {
+    console.log("[Smartshell] fetchSmartshellProducts skipped - not configured", { branchId });
     return [];
   }
 
-  const result = await smartshell.query<{ products: SmartshellProduct[] }>(PRODUCTS_QUERY, {
-    branchId,
-  });
+  console.log("[Smartshell] Fetching products", { branchId });
 
-  return result.products ?? [];
+  try {
+    const result = await smartshell.query<{ products: SmartshellProduct[] }>(PRODUCTS_QUERY, {
+      branchId,
+    });
+
+    const products = result.products ?? [];
+    console.log("[Smartshell] Products fetched", {
+      branchId,
+      count: products.length,
+    });
+
+    return products;
+  } catch (error) {
+    console.error("[Smartshell] Failed to fetch products", {
+      branchId,
+      error: String(error),
+    });
+    return [];
+  }
 }
 
 export async function fetchSmartshellSalesForShift(shiftId: string): Promise<SmartshellSalesItem[]> {
   if (!isSmartshellConfigured()) {
+    console.log("[Smartshell] fetchSmartshellSalesForShift skipped - not configured", { shiftId });
     return [];
   }
 
-  const result = await smartshell.query<{ workShiftItems: SmartshellSalesItem[] }>(WORK_SHIFT_ITEMS_QUERY, {
-    workShiftId: shiftId,
-  });
+  console.log("[Smartshell] Fetching sales for shift", { shiftId });
 
-  return result.workShiftItems ?? [];
+  try {
+    const result = await smartshell.query<{ workShiftItems: SmartshellSalesItem[] }>(WORK_SHIFT_ITEMS_QUERY, {
+      workShiftId: shiftId,
+    });
+
+    const items = result.workShiftItems ?? [];
+    console.log("[Smartshell] Sales fetched for shift", {
+      shiftId,
+      count: items.length,
+    });
+
+    return items;
+  } catch (error) {
+    console.error("[Smartshell] Failed to fetch sales for shift", {
+      shiftId,
+      error: String(error),
+    });
+    return [];
+  }
 }
 
 export function normalizeSmartshellProduct(product: SmartshellProduct) {
@@ -70,6 +104,16 @@ export function normalizeSmartshellProduct(product: SmartshellProduct) {
     delivered: Number(product.delivered ?? 0),
     displayed: Number(product.displayed ?? 0),
   };
+}
+
+/**
+ * Helper to log when we fall back to placeholder catalog (Smartshell unavailable or empty).
+ */
+export function logSmartshellFallback(branchId: string, reason: string) {
+  console.warn("[Smartshell] Using placeholder catalog", {
+    branchId,
+    reason,
+  });
 }
 
 export function normalizeSmartshellSalesItem(item: SmartshellSalesItem) {
