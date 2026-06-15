@@ -16,7 +16,15 @@ export function LoginForm() {
     <form action={formAction} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" placeholder="admin@club.ru" required />
+        <Input
+          id="email"
+          name="email"
+          type="text"
+          inputMode="email"
+          autoComplete="username"
+          placeholder="owner@demo.local"
+          required
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Пароль</Label>

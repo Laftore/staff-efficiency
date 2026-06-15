@@ -6,12 +6,14 @@
  * Запуск: npm run demo:users
  */
 import { createClient } from "@supabase/supabase-js";
+import { PrismaClient, type Role } from "@prisma/client";
 import dotenv from "dotenv";
 import path from "path";
 
-const envLocal = path.resolve(process.cwd(), ".env.local");
-dotenv.config({ path: envLocal });
-dotenv.config({ path: path.resolve(process.cwd(), ".env"), override: false });
+const root = process.cwd();
+dotenv.config({ path: path.resolve(root, ".env.production.local") });
+dotenv.config({ path: path.resolve(root, ".env.local") });
+dotenv.config({ path: path.resolve(root, ".env"), override: false });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -73,6 +75,8 @@ const admin = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+const prisma = process.env.DATABASE_URL ? new PrismaClient() : null;
+
 async function ensureUser(
   email: string,
   password: string,
@@ -107,32 +111,39 @@ async function main() {
   for (const demo of DEMO_USERS) {
     const user = await ensureUser(demo.email, demo.password);
 
-    const profile = {
-      id: user.id,
-      email: user.email,
-      display_name: demo.displayName,
-      role: demo.role,
-      branch_id: demo.branchId,
-      updated_at: new Date().toISOString(),
-    };
+    if (prisma) {
+      try {
+        await prisma.profile.upsert({
+          where: { id: user.id },
+          create: {
+            id: user.id,
+            email: user.email,
+            displayName: demo.displayName,
+            role: demo.role as Role,
+            branchId: demo.branchId,
+          },
+          update: {
+            email: user.email,
+            displayName: demo.displayName,
+            role: demo.role as Role,
+            branchId: demo.branchId,
+          },
+        });
 
-    const { error: profileError } = await admin
-      .from("profiles")
-      .upsert(profile, { onConflict: "id" });
-
-    if (profileError) {
-      console.warn(`  ⚠️ Профиль ${demo.email}: ${profileError.message}`);
-    }
-
-    if (demo.employeeId) {
-      const { error: empError } = await admin
-        .from("employees")
-        .update({ profile_id: user.id })
-        .eq("id", demo.employeeId);
-
-      if (empError) {
-        console.warn(`  ⚠️ Привязка сотрудника ${demo.employeeId}: ${empError.message}`);
+        if (demo.employeeId) {
+          await prisma.employee.update({
+            where: { id: demo.employeeId },
+            data: { profileId: user.id },
+          });
+        }
+      } catch (profileError) {
+        const message =
+          profileError instanceof Error ? profileError.message : String(profileError);
+        console.warn(`  ⚠️ Профиль ${demo.email}: ${message}`);
+        console.warn("     Запустите: npm run deploy:setup (нужны миграции в БД)");
       }
+    } else {
+      console.warn(`  ⚠️ DATABASE_URL не задан — профиль ${demo.email} не создан в БД`);
     }
 
     console.log(`  ✅ ${demo.role.padEnd(12)} ${demo.email} / ${DEMO_PASSWORD}`);
@@ -145,7 +156,11 @@ async function main() {
   console.log(`   Пароль для всех:   ${DEMO_PASSWORD}\n`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma?.$disconnect();
+  });

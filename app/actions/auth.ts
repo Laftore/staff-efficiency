@@ -15,8 +15,8 @@ export async function signIn(
   }
 
   const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
+    email: String(formData.get("email") ?? "").trim(),
+    password: String(formData.get("password") ?? ""),
   });
 
   if (!parsed.success) {
@@ -27,7 +27,13 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    return { error: error.message === "Invalid login credentials" ? "Неверный email или пароль" : error.message };
+    if (error.message === "Invalid login credentials") {
+      return {
+        error:
+          "Неверный email или пароль. Для демо: owner@demo.local / Demo2026! (сначала npm run deploy:setup)",
+      };
+    }
+    return { error: error.message };
   }
 
   redirect("/");
