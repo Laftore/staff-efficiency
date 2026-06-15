@@ -50,6 +50,16 @@ for (const key of keys) {
   }
 }
 
+const dbUrl = process.env.DATABASE_URL;
+if (dbUrl) {
+  try {
+    const passLen = decodeURIComponent(new URL(dbUrl).password).length;
+    console.log(`\n⚠️  Сверка: на Vercel в /api/health поле passwordLength должно быть ${passLen}`);
+  } catch {
+    // ignore
+  }
+}
+
 console.log(`
 В Vercel → Settings → Environment Variables:
   • Отметьте Production + Preview

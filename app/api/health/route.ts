@@ -40,7 +40,15 @@ export async function GET() {
       dbOk = true;
       profileCount = await prisma.profile.count();
     } catch (error) {
-      dbError = error instanceof Error ? error.message.split("\n")[0] : "unknown";
+      if (error instanceof Error) {
+        dbError = [error.message, error.name, String((error as { code?: string }).code ?? "")]
+          .filter(Boolean)
+          .join(" | ")
+          .trim();
+      } else {
+        dbError = String(error);
+      }
+      if (!dbError) dbError = "unknown connection error";
     }
   }
 
@@ -60,12 +68,16 @@ export async function GET() {
   if (database.set && "hasPgbouncer" in database && !database.hasPgbouncer) {
     issues.push("DATABASE_URL: добавьте ?pgbouncer=true");
   }
-  if (dbError?.includes("Authentication failed")) {
-    issues.push(
-      "Пароль в DATABASE_URL на Vercel ≠ Database password в Supabase. Сбросьте пароль и вставьте новые строки из Connect.",
-    );
-  } else if (!dbOk && isDatabaseConfigured()) {
-    issues.push(dbError ?? "Не удалось подключиться к Postgres");
+  if (!dbOk && isDatabaseConfigured()) {
+    const passLen =
+      database.set && "passwordLength" in database ? database.passwordLength : null;
+    if (dbError.includes("Authentication failed")) {
+      issues.push(
+        `Пароль в DATABASE_URL неверный (длина на Vercel: ${passLen}). Скопируйте строку целиком из .env.production.local — npm run deploy:print-env покажет длину локально.`,
+      );
+    } else {
+      issues.push(dbError);
+    }
   }
 
   return NextResponse.json({
