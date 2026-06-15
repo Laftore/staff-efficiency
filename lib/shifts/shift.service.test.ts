@@ -223,7 +223,7 @@ describe('shift.service', () => {
 
       const result = await resetShiftBonus(ownerUser, 'shift-123');
 
-      expect(result.success).toBe(true);
+      expect(result).toEqual({ success: true });
       expect(logAction).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'SHIFT_BONUS_RESET' })
       );
@@ -238,7 +238,7 @@ describe('shift.service', () => {
       vi.mocked(prisma.shift.update).mockResolvedValue({} as any);
 
       const result = await resetShiftBonus(seniorAdminUser, 'shift-123');
-      expect(result.success).toBe(true);
+      expect(result).toEqual({ success: true });
     });
 
     it('should prevent SENIOR_ADMIN from resetting bonus in another branch', async () => {

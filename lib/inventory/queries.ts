@@ -150,7 +150,7 @@ export async function getInventoryRowsForShift(
     const warehouse =
       stored !== undefined
         ? stored.warehouse
-        : Math.max(0, fact - (stored?.displayed ?? item.displayed));
+        : Math.max(0, fact - item.displayed);
 
     return {
       productName: item.productName,
