@@ -65,9 +65,9 @@ console.log(`
      - NEXT_PUBLIC_SUPABASE_URL
      - NEXT_PUBLIC_SUPABASE_ANON_KEY
      - SUPABASE_SERVICE_ROLE_KEY
-     - DATABASE_URL  (порт 6543, pooler)
-     - DIRECT_URL    (порт 5432, direct)
-  4. Deploy
+     - DATABASE_URL  (pooler, порт 6543, ?pgbouncer=true)
+     - DIRECT_URL    (pooler, порт 5432 — НЕ db.xxx.supabase.co!)
+  4. Deploy (миграции уже применены этим скриптом)
 
 Демо-логин после деплоя:
   owner@demo.local / Demo2026!
