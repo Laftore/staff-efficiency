@@ -23,6 +23,7 @@ export interface InventoryRowData {
   displayed: number;
   sold: number;
   revenueGoods: number;
+  warehouse: number;
   fact: number;
 }
 
@@ -95,12 +96,17 @@ export async function getInventoryRowsForShift(
   shiftId: string,
 ): Promise<InventoryRowData[]> {
   if (!isDatabaseConfigured()) {
-    return SMARTSHELL_PLACEHOLDER_CATALOG.map((item) => ({
-      ...item,
-      fact: Math.max(0, item.previousStock + item.delivered - item.displayed),
-      sold: 0,
-      revenueGoods: 0,
-    }));
+    return SMARTSHELL_PLACEHOLDER_CATALOG.map((item) => {
+      const fact = Math.max(0, item.previousStock + item.delivered - item.displayed);
+      const sold = Math.max(0, item.previousStock + item.delivered - fact);
+      return {
+        ...item,
+        fact,
+        sold,
+        revenueGoods: 0,
+        warehouse: Math.max(0, fact - item.displayed),
+      };
+    });
   }
 
   await syncSmartshellShiftInventory(shiftId);
@@ -123,10 +129,29 @@ export async function getInventoryRowsForShift(
   });
 
   const savedByName = new Map(saved.map((s) => [s.productName, s]));
+  const savedBySku = new Map(
+    saved.filter((s) => s.sku).map((s) => [s.sku as string, s]),
+  );
 
   return catalog.map((item) => {
-    const stored = savedByName.get(item.productName);
+    const stored =
+      savedByName.get(item.productName) ??
+      (item.sku ? savedBySku.get(item.sku) : undefined);
     const defaultFact = Math.max(0, item.previousStock + item.delivered - item.displayed);
+    const fact = stored?.fact ?? defaultFact;
+    const sold =
+      stored !== undefined
+        ? stored.sold
+        : Math.max(0, item.previousStock + item.delivered - fact);
+    const revenueGoods =
+      stored !== undefined
+        ? stored.revenueGoods
+        : sold * 95;
+    const warehouse =
+      stored !== undefined
+        ? stored.warehouse
+        : Math.max(0, fact - (stored?.displayed ?? item.displayed));
+
     return {
       productName: item.productName,
       sku: item.sku,
@@ -134,9 +159,10 @@ export async function getInventoryRowsForShift(
       previousStock: stored?.previousStock ?? item.previousStock,
       delivered: stored?.delivered ?? item.delivered,
       displayed: stored?.displayed ?? item.displayed,
-      sold: stored?.sold ?? 0,
-      revenueGoods: stored?.revenueGoods ?? 0,
-      fact: stored?.fact ?? defaultFact,
+      sold,
+      revenueGoods,
+      warehouse,
+      fact,
     };
   });
 }

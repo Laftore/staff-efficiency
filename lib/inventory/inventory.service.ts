@@ -5,6 +5,7 @@ import { assertShiftInventoryAccess } from "@/lib/inventory/queries";
 import {
   SMARTSHELL_PLACEHOLDER_CATALOG,
 } from "@/lib/inventory/catalog";
+import { buildInventoryPersistData } from "@/lib/inventory/persist";
 import {
   normalizeSmartshellProduct,
   fetchSmartshellProducts,
@@ -38,6 +39,14 @@ export async function saveInventoryFacts(
 
   const catalogMap = new Map(catalogRows.map((c) => [c.productName, c]));
 
+  const existingItems = await prisma.inventoryItem.findMany({
+    where: { shiftId },
+    select: { productName: true, sold: true, revenueGoods: true },
+  });
+  const existingByName = new Map(
+    existingItems.map((item) => [item.productName, item]),
+  );
+
   // Сохраняем только те позиции, которые есть в каталоге
   await prisma.$transaction(async (tx) => {
     await tx.inventoryItem.deleteMany({
@@ -48,13 +57,23 @@ export async function saveInventoryFacts(
       .filter((item) => catalogMap.has(item.productName))
       .map((item) => {
         const cat = catalogMap.get(item.productName)!;
+        const existing = existingByName.get(item.productName);
+        const row = buildInventoryPersistData(
+          {
+            productName: cat.productName,
+            sku: cat.sku,
+            category: cat.category,
+            previousStock: cat.previousStock,
+            delivered: cat.delivered,
+            displayed: cat.displayed,
+          },
+          item.fact,
+          existing,
+        );
+
         return {
           shiftId,
-          productName: item.productName,
-          previousStock: cat.previousStock,
-          delivered: cat.delivered,
-          displayed: cat.displayed,
-          fact: item.fact,
+          ...row,
         };
       });
 

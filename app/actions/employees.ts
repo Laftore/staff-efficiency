@@ -151,10 +151,14 @@ export async function updateEmployee(
     }
     assertBranchAccess(user, existing.branchId);
 
-    const newProfile = await resolveProfileLink(profileEmail);
+    let linkedProfile = profileEmail ? await resolveProfileLink(profileEmail) : null;
 
-    if (newProfile) {
-      await assertProfileAvailableForEmployee(newProfile.id, id);
+    if (linkedProfile) {
+      await assertProfileAvailableForEmployee(linkedProfile.id, id);
+    } else if (existing.profileId) {
+      linkedProfile = await prisma.profile.findUnique({
+        where: { id: existing.profileId },
+      });
     }
 
     await prisma.$transaction(async (tx) => {
@@ -163,30 +167,32 @@ export async function updateEmployee(
         data: {
           name,
           branchId,
-          profileId: newProfile?.id ?? null,
+          profileId: linkedProfile?.id ?? null,
         },
       });
 
-      if (newProfile) {
-        const previousRole = existing.profile?.role ?? "UNKNOWN";
+      if (linkedProfile) {
+        const previousRole = existing.profile?.role ?? linkedProfile.role;
 
         await tx.profile.update({
-          where: { id: newProfile.id },
+          where: { id: linkedProfile.id },
           data: { role, branchId },
         });
 
-        await logAction({
-          user,
-          action: AuditAction.ROLE_CHANGED,
-          entityType: "PROFILE",
-          entityId: newProfile.id,
-          branchId,
-          details: {
-            newRole: role,
-            previousRole,
-            linkedToEmployee: true,
-          },
-        });
+        if (previousRole !== role) {
+          await logAction({
+            user,
+            action: AuditAction.ROLE_CHANGED,
+            entityType: "PROFILE",
+            entityId: linkedProfile.id,
+            branchId,
+            details: {
+              newRole: role,
+              previousRole,
+              linkedToEmployee: true,
+            },
+          });
+        }
       }
     });
 

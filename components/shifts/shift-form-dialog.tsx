@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { saveShift, type ShiftActionResult } from "@/app/actions/shifts";
@@ -71,6 +72,7 @@ export function ShiftFormDialog({
   triggerLabel,
   userRole,
 }: ShiftFormDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const isEdit = Boolean(initial?.id);
 
@@ -99,9 +101,10 @@ export function ShiftFormDialog({
       toast.success(isEdit ? "Смена обновлена" : "Смена создана", {
         description: "Бонус пересчитан автоматически",
       });
+      router.refresh();
       setOpen(false);
     }
-  }, [state?.success, isEdit]);
+  }, [state?.success, isEdit, router]);
 
   useEffect(() => {
     if (state?.error) {

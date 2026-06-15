@@ -10,8 +10,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
+import {
+  formatAuditEntity,
+  formatDetailsEntries,
+  formatDetailsPreview,
+  getAuditActionLabel,
+  getBranchLabel,
+  getRoleLabel,
+} from "@/lib/audit/labels";
 
-// Используем нативное форматирование, чтобы не добавлять зависимость date-fns
 function formatDate(dateInput: string | Date): string {
   const date = new Date(dateInput);
   return date.toLocaleDateString("ru-RU", {
@@ -32,44 +39,22 @@ interface AuditLog {
   entityType: string;
   entityId: string;
   branchId?: string | null;
-  details?: any;
+  details?: unknown;
 }
 
 interface AuditLogsTableProps {
   logs: AuditLog[];
+  branchNames: Record<string, string>;
 }
 
-/**
- * Компактный предпросмотр details (1-2 ключа или счётчик)
- */
-function getDetailsPreview(details: any): string {
-  if (!details || typeof details !== "object") {
-    return String(details ?? "—");
-  }
-
-  const keys = Object.keys(details);
-  if (keys.length === 0) return "{}";
-
-  // Специальные красивые случаи
-  if ("previousBonus" in details && "newBonus" in details) {
-    return `${details.previousBonus} → ${details.newBonus}`;
-  }
-  if ("newRole" in details && "previousRole" in details) {
-    return `${details.previousRole} → ${details.newRole}`;
-  }
-  if (keys.length === 1) {
-    const k = keys[0];
-    const v = details[k];
-    return `${k}: ${typeof v === "object" ? "..." : String(v)}`;
-  }
-
-  return `${keys.length} полей: ${keys.slice(0, 2).join(", ")}${keys.length > 2 ? "…" : ""}`;
-}
-
-/**
- * Красивый JSON-viewer внутри диалога
- */
-function DetailsViewer({ log }: { log: AuditLog }) {
+function DetailsViewer({
+  log,
+  branchNames,
+}: {
+  log: AuditLog;
+  branchNames: Record<string, string>;
+}) {
+  const entries = formatDetailsEntries(log.details);
   const json = log.details
     ? JSON.stringify(log.details, null, 2)
     : "Нет дополнительных данных";
@@ -78,65 +63,94 @@ function DetailsViewer({ log }: { log: AuditLog }) {
     try {
       await navigator.clipboard.writeText(json);
     } catch {
-      // silently ignore (старые браузеры)
+      // ignore
     }
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          {log.action} • {log.entityType} #{log.entityId.slice(0, 8)}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={copyToClipboard}
-          className="h-7 text-xs"
-        >
-          Копировать JSON
-        </Button>
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-muted/20 p-4 text-sm">
+        <p className="font-medium">{getAuditActionLabel(log.action)}</p>
+        <p className="mt-1 text-muted-foreground">
+          {formatAuditEntity(log)}
+          {log.branchId
+            ? ` · ${getBranchLabel(log.branchId, branchNames)}`
+            : null}
+        </p>
       </div>
 
-      <pre className="max-h-[420px] overflow-auto rounded-md border bg-muted/30 p-4 text-xs leading-relaxed font-mono">
-        {json}
-      </pre>
+      {entries.length > 0 ? (
+        <dl className="grid gap-3 sm:grid-cols-2">
+          {entries.map((entry) => (
+            <div key={entry.label} className="rounded-md border px-3 py-2">
+              <dt className="text-xs text-muted-foreground">{entry.label}</dt>
+              <dd className="mt-0.5 text-sm font-medium">{entry.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p className="text-sm text-muted-foreground">Дополнительных данных нет.</p>
+      )}
+
+      <details className="rounded-md border">
+        <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
+          Технические данные (JSON)
+        </summary>
+        <div className="border-t p-3">
+          <div className="mb-2 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyToClipboard}
+              className="h-7 text-xs"
+            >
+              Копировать
+            </Button>
+          </div>
+          <pre className="max-h-[280px] overflow-auto rounded-md bg-muted/30 p-3 text-xs leading-relaxed font-mono">
+            {json}
+          </pre>
+        </div>
+      </details>
     </div>
   );
 }
 
-/**
- * Ячейка с деталями: компактный превью + кнопка открытия модального JSON viewer
- */
-function AuditDetailsCell({ log }: { log: AuditLog }) {
+function AuditDetailsCell({
+  log,
+  branchNames,
+}: {
+  log: AuditLog;
+  branchNames: Record<string, string>;
+}) {
   if (!log.details) {
     return <span className="text-muted-foreground">—</span>;
   }
 
-  const preview = getDetailsPreview(log.details);
+  const preview = formatDetailsPreview(log.details);
 
   return (
     <Dialog>
       <DialogTrigger asChild>
         <button
-          className="group flex max-w-[260px] items-center gap-1.5 rounded border border-transparent px-2 py-1 text-left text-xs text-muted-foreground transition hover:border-border hover:bg-muted/40 hover:text-foreground"
-          title="Нажмите, чтобы посмотреть полные детали"
+          className="group flex max-w-[280px] items-center gap-1.5 rounded border border-transparent px-2 py-1 text-left text-xs text-muted-foreground transition hover:border-border hover:bg-muted/40 hover:text-foreground"
+          title="Посмотреть подробности"
         >
-          <Eye className="size-3.5 opacity-60 group-hover:opacity-100" />
+          <Eye className="size-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
           <span className="truncate">{preview}</span>
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Детали события</DialogTitle>
+          <DialogTitle>Подробности события</DialogTitle>
         </DialogHeader>
-        <DetailsViewer log={log} />
+        <DetailsViewer log={log} branchNames={branchNames} />
       </DialogContent>
     </Dialog>
   );
 }
 
-export function AuditLogsTable({ logs }: AuditLogsTableProps) {
+export function AuditLogsTable({ logs, branchNames }: AuditLogsTableProps) {
   if (logs.length === 0) {
     return (
       <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
@@ -146,41 +160,43 @@ export function AuditLogsTable({ logs }: AuditLogsTableProps) {
   }
 
   return (
-    <div className="rounded-xl border overflow-hidden">
+    <div className="overflow-hidden rounded-xl border">
       <table className="w-full text-sm">
         <thead className="bg-muted/40">
           <tr>
-            <th className="text-left px-4 py-3 font-medium">Дата / Время</th>
-            <th className="text-left px-4 py-3 font-medium">Пользователь</th>
-            <th className="text-left px-4 py-3 font-medium">Действие</th>
-            <th className="text-left px-4 py-3 font-medium">Объект</th>
-            <th className="text-left px-4 py-3 font-medium">Филиал</th>
-            <th className="text-left px-4 py-3 font-medium w-[280px]">Детали</th>
+            <th className="px-4 py-3 text-left font-medium">Дата и время</th>
+            <th className="px-4 py-3 text-left font-medium">Пользователь</th>
+            <th className="px-4 py-3 text-left font-medium">Действие</th>
+            <th className="px-4 py-3 text-left font-medium">Объект</th>
+            <th className="px-4 py-3 text-left font-medium">Филиал</th>
+            <th className="w-[280px] px-4 py-3 text-left font-medium">Подробности</th>
           </tr>
         </thead>
         <tbody className="divide-y">
           {logs.map((log) => (
             <tr key={log.id} className="hover:bg-muted/30">
-              <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+              <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                 {formatDate(log.createdAt)}
               </td>
               <td className="px-4 py-3">
                 <div className="font-medium">{log.actorName || "—"}</div>
-                <div className="text-xs text-muted-foreground">{log.actorRole}</div>
+                <div className="text-xs text-muted-foreground">
+                  {getRoleLabel(log.actorRole)}
+                </div>
               </td>
               <td className="px-4 py-3">
                 <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  {log.action}
+                  {getAuditActionLabel(log.action)}
                 </span>
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {log.entityType} <span className="text-xs">#{log.entityId.slice(0, 8)}</span>
+                {formatAuditEntity(log)}
               </td>
-              <td className="px-4 py-3 text-muted-foreground text-xs">
-                {log.branchId ? log.branchId.slice(0, 8) : "—"}
+              <td className="px-4 py-3 text-sm">
+                {getBranchLabel(log.branchId, branchNames)}
               </td>
               <td className="px-4 py-3">
-                <AuditDetailsCell log={log} />
+                <AuditDetailsCell log={log} branchNames={branchNames} />
               </td>
             </tr>
           ))}

@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getAuditActionLabel } from "@/lib/audit/labels";
 
 interface Branch {
   id: string;
@@ -82,7 +83,7 @@ export function AuditFilters({ branches, actions, currentFilters }: AuditFilters
             <SelectItem value="all">Все действия</SelectItem>
             {actions.map((a) => (
               <SelectItem key={a} value={a}>
-                {a}
+                {getAuditActionLabel(a)}
               </SelectItem>
             ))}
           </SelectContent>

@@ -21,17 +21,26 @@ interface DashboardChartsProps {
 }
 
 function formatTooltipValue(value: number, name: string): [string, string] {
-  if (name === "revenue" || name === "bonus") {
+  const isBonus = name === "bonus" || name === "Бонус";
+  const isRevenue = name === "revenue" || name === "Выручка";
+  const isShifts = name === "shifts" || name === "Смен" || name === "Смены";
+
+  if (isBonus || isRevenue) {
     return [
       new Intl.NumberFormat("ru-RU", {
         style: "currency",
         currency: "RUB",
         maximumFractionDigits: 0,
       }).format(value),
-      name === "bonus" ? "Бонус" : "Выручка",
+      isBonus ? "Бонус" : "Выручка",
     ];
   }
-  return [String(value), "Смен"];
+
+  if (isShifts) {
+    return [String(value), "Смен"];
+  }
+
+  return [String(value), name];
 }
 
 export function DashboardCharts({ data, period }: DashboardChartsProps) {
@@ -116,10 +125,9 @@ export function DashboardCharts({ data, period }: DashboardChartsProps) {
                   border: "1px solid var(--border)",
                   borderRadius: "8px",
                 }}
-                formatter={(value, name) => {
-                  if (name === "shifts") return [String(value), "Смен"];
-                  return formatTooltipValue(Number(value), String(name));
-                }}
+                formatter={(value, name) =>
+                  formatTooltipValue(Number(value), String(name))
+                }
               />
               <Legend />
               <Line

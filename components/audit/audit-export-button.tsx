@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import {
+  formatAuditEntity,
+  formatDetailsPreview,
+  getAuditActionLabel,
+  getBranchLabel,
+  getRoleLabel,
+} from "@/lib/audit/labels";
 
 interface AuditLogForExport {
   createdAt: string | Date;
@@ -17,6 +24,7 @@ interface AuditLogForExport {
 
 interface AuditExportButtonProps {
   logs: AuditLogForExport[];
+  branchNames?: Record<string, string>;
   filenamePrefix?: string;
 }
 
@@ -30,27 +38,28 @@ function escapeCsvValue(value: unknown): string {
   return str;
 }
 
-function generateCsv(logs: AuditLogForExport[]): string {
+function generateCsv(
+  logs: AuditLogForExport[],
+  branchNames: Record<string, string>,
+): string {
   const headers = [
     "Дата",
     "Пользователь",
     "Роль",
     "Действие",
-    "Тип объекта",
-    "ID объекта",
+    "Объект",
     "Филиал",
-    "Детали (JSON)",
+    "Подробности",
   ];
 
   const rows = logs.map((log) => [
-    new Date(log.createdAt).toISOString(),
+    new Date(log.createdAt).toLocaleString("ru-RU"),
     log.actorName || "",
-    log.actorRole,
-    log.action,
-    log.entityType,
-    log.entityId,
-    log.branchId || "",
-    log.details ? JSON.stringify(log.details) : "",
+    getRoleLabel(log.actorRole),
+    getAuditActionLabel(log.action),
+    formatAuditEntity(log),
+    getBranchLabel(log.branchId, branchNames),
+    formatDetailsPreview(log.details),
   ]);
 
   const csvContent = [
@@ -63,6 +72,7 @@ function generateCsv(logs: AuditLogForExport[]): string {
 
 export function AuditExportButton({
   logs,
+  branchNames = {},
   filenamePrefix = "audit-logs",
 }: AuditExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false);
@@ -73,7 +83,7 @@ export function AuditExportButton({
     setIsExporting(true);
 
     try {
-      const csv = generateCsv(logs);
+      const csv = generateCsv(logs, branchNames);
       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
 

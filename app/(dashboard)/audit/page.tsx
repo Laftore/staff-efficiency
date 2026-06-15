@@ -62,6 +62,7 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
   );
 
   const actions = Object.values(AuditAction);
+  const branchNames = Object.fromEntries(branches.map((b) => [b.id, b.name]));
 
   return (
     <>
@@ -90,10 +91,10 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
               to: params.to,
             }}
           />
-          <AuditExportButton logs={logs} />
+          <AuditExportButton logs={logs} branchNames={branchNames} />
         </div>
 
-        <AuditLogsTable logs={logs} />
+        <AuditLogsTable logs={logs} branchNames={branchNames} />
 
         {/* Простая пагинация */}
         <div className="flex items-center justify-between text-sm text-muted-foreground">

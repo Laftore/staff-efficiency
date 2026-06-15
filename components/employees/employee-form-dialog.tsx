@@ -123,7 +123,14 @@ export function EmployeeFormDialog({
         return;
       }
 
-      toast.success(isEdit ? "Сотрудник обновлён" : "Сотрудник создан");
+      const roleNote =
+        isEdit && !values.profileEmail?.trim()
+          ? " Имя и филиал сохранены. Роль применяется при привязке email профиля."
+          : "";
+      toast.success(
+        isEdit ? "Сотрудник обновлён" : "Сотрудник создан",
+        roleNote ? { description: roleNote.trim() } : undefined,
+      );
       router.refresh();
       setOpen(false);
     } finally {

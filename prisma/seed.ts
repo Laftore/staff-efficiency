@@ -1,4 +1,6 @@
 import { PrismaClient, ShiftType } from "@prisma/client";
+import { SMARTSHELL_PLACEHOLDER_CATALOG } from "../lib/inventory/catalog";
+import { buildInventoryPersistData } from "../lib/inventory/persist";
 import {
   calculateShiftBonus,
   getStoredBonusValue,
@@ -22,17 +24,6 @@ const EMPLOYEES = [
   { id: "emp_south_1", name: "Никита Белов", branchId: "branch_south" },
   { id: "emp_south_2", name: "Ольга Зайцева", branchId: "branch_south" },
   { id: "emp_south_3", name: "Кирилл Новиков", branchId: "branch_south" },
-] as const;
-
-const PRODUCTS = [
-  { name: "Red Bull 250 мл", sku: "RB-250", category: "Напитки" },
-  { name: "Coca-Cola 0.5 л", sku: "CC-500", category: "Напитки" },
-  { name: "Lay's Classic 140 г", sku: "LS-140", category: "Снеки" },
-  { name: "Snickers 50 г", sku: "SN-50", category: "Снеки" },
-  { name: "Monster Energy 500 мл", sku: "MN-500", category: "Напитки" },
-  { name: "Pringles Original 165 г", sku: "PR-165", category: "Снеки" },
-  { name: "Вода Aqua Minerale 0.5 л", sku: "AQ-500", category: "Напитки" },
-  { name: "KitKat 4 пальца", sku: "KK-4F", category: "Снеки" },
 ] as const;
 
 /** Сценарии выручки для разнообразных графиков KPI */
@@ -182,39 +173,24 @@ async function seedShiftsAndInventory() {
       });
       shiftCount++;
 
-      if (day <= 7) {
-        for (let p = 0; p < PRODUCTS.length; p++) {
-          const product = PRODUCTS[p];
-          const previousStock = 20 + p * 3;
-          const delivered = p % 3 === 0 ? 10 : 0;
-          const displayed = previousStock + delivered - (p % 2);
-          const sold = 4 + (day + p) % 8;
-          const fact = displayed - sold;
-          const revenueGoods = sold * (80 + p * 15);
+      if (day <= 14) {
+        for (let p = 0; p < SMARTSHELL_PLACEHOLDER_CATALOG.length; p++) {
+          const product = SMARTSHELL_PLACEHOLDER_CATALOG[p];
+          const sold = 3 + ((day + p) % 9);
+          const fact = Math.max(
+            0,
+            product.displayed - sold + (p % 2),
+          );
+          const row = buildInventoryPersistData(product, fact);
 
           await prisma.inventoryItem.upsert({
             where: { id: `inv_${shiftId}_${p}` },
             create: {
               id: `inv_${shiftId}_${p}`,
               shiftId,
-              productName: product.name,
-              sku: product.sku,
-              category: product.category,
-              previousStock,
-              delivered,
-              displayed,
-              sold,
-              fact,
-              revenueGoods,
+              ...row,
             },
-            update: {
-              previousStock,
-              delivered,
-              displayed,
-              sold,
-              fact,
-              revenueGoods,
-            },
+            update: row,
           });
           inventoryCount++;
         }

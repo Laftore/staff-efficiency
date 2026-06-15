@@ -4,12 +4,19 @@ import type { SessionUser } from '@/types';
 import { AuthorizationError } from '@/lib/auth/authorization';
 
 // Mocks
+const createManyMock = vi.fn();
+
 vi.mock('@/lib/prisma', () => ({
   prisma: {
+    inventoryItem: {
+      findMany: vi.fn(async () => [
+        { productName: 'Cola 0.5', sold: 8, revenueGoods: 960 },
+      ]),
+    },
     $transaction: vi.fn(async (fn) => fn({
       inventoryItem: {
         deleteMany: vi.fn(),
-        createMany: vi.fn(),
+        createMany: createManyMock,
       },
     })),
   },
@@ -162,6 +169,28 @@ describe('inventory.service', () => {
 
     // Should not throw and should complete successfully using placeholder
     expect(logAction).toHaveBeenCalled();
+  });
+
+  it('should persist sold, revenue and warehouse when saving facts', async () => {
+    vi.mocked(assertShiftInventoryAccess).mockResolvedValue({ branchId: 'branch-1' });
+    vi.mocked(fetchSmartshellProducts).mockResolvedValue([]);
+
+    await saveInventoryFacts(ownerUser, 'shift-persist', [
+      { productName: 'Placeholder Cola', fact: 6 },
+    ]);
+
+    expect(createManyMock).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          productName: 'Placeholder Cola',
+          fact: 6,
+          sold: expect.any(Number),
+          revenueGoods: expect.any(Number),
+          warehouse: expect.any(Number),
+          sku: 'COLA-001',
+        }),
+      ]),
+    });
   });
 
   it('should only save items that exist in the catalog', async () => {

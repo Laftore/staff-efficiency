@@ -58,11 +58,11 @@ export async function saveShift(
       return { error: parsed.error.issues[0]?.message ?? "Неверные данные" };
     }
 
-    return withAction(async () => {
+    const wrapped = await withAction(async () => {
       const user = await getSessionUser();
       requireUser(user);
 
-      return await updateShift(user, {
+      await updateShift(user, {
         id: parsed.data.id!,
         branchId: parsed.data.branchId,
         employeeId: parsed.data.employeeId,
@@ -72,7 +72,14 @@ export async function saveShift(
         revenueGoods: parsed.data.revenueGoods,
         bonusAdjustment: parsed.data.bonusAdjustment,
       });
+
+      revalidatePath("/shifts");
+      revalidatePath("/");
+      return { success: true as const };
     });
+
+    if (wrapped.error) return { error: wrapped.error };
+    return wrapped.data!;
   }
 
   // Создание новой смены

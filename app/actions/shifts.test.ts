@@ -118,6 +118,26 @@ describe('saveShift - Server Action', () => {
     expect(notifyBonusNeedsReset).toHaveBeenCalledWith('shift-456');
   });
 
+  it('should return success when updating an existing shift', async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(ownerUser);
+    vi.mocked(updateShift).mockResolvedValue({ success: true });
+
+    const formData = new FormData();
+    formData.set('id', 'shift-1');
+    formData.set('branchId', 'branch-1');
+    formData.set('employeeId', 'emp-1');
+    formData.set('date', '2026-05-27');
+    formData.set('type', 'DAY');
+    formData.set('revenueTariff', '16000');
+    formData.set('revenueGoods', '3500');
+
+    const result = await saveShift(null, formData);
+
+    expect(result.success).toBe(true);
+    expect(updateShift).toHaveBeenCalled();
+    expect(createShift).not.toHaveBeenCalled();
+  });
+
   it('should return validation error without calling service', async () => {
     vi.mocked(getSessionUser).mockResolvedValue(ownerUser);
 
