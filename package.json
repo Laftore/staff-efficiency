@@ -20,6 +20,7 @@
     "demo:setup:mock": "node scripts/setup-demo.mjs --mock",
     "demo:users": "npx tsx scripts/setup-demo-users.ts",
     "deploy:setup": "node scripts/setup-vercel-supabase.mjs",
+    "deploy:check": "node scripts/check-supabase-env.mjs",
     "test:bonus": "node --import tsx --test lib/kpi/bonus.test.ts",
     "test": "vitest",
     "test:watch": "vitest --watch",

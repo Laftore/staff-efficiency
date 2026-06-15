@@ -7,12 +7,18 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { PrismaClient, type Role } from "@prisma/client";
+import { existsSync } from "node:fs";
 import dotenv from "dotenv";
 import path from "path";
 
 const root = process.cwd();
-dotenv.config({ path: path.resolve(root, ".env.production.local") });
-dotenv.config({ path: path.resolve(root, ".env.local") });
+const productionEnv = path.resolve(root, ".env.production.local");
+// .env.local (localhost) не должен перезаписывать облачный Supabase
+if (existsSync(productionEnv)) {
+  dotenv.config({ path: productionEnv });
+} else {
+  dotenv.config({ path: path.resolve(root, ".env.local") });
+}
 dotenv.config({ path: path.resolve(root, ".env"), override: false });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
