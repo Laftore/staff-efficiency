@@ -39,16 +39,22 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (process.env.E2E_AUTH_MOCK === "1" && process.env.NODE_ENV !== "production") {
     try {
       const cookieStore = await cookies();
-      const role = (cookieStore.get("e2e-test-role")?.value as AppRole | undefined) ?? "ADMIN";
+      const role = (cookieStore.get("e2e-test-role")?.value as AppRole | undefined) ?? "OWNER";
       const branchIdFromCookie = cookieStore.get("e2e-test-branch-id")?.value ?? null;
 
+      const displayNameFromCookie = cookieStore.get("e2e-test-display-name")?.value;
       const isOwner = role === "OWNER";
+      const defaultNames: Record<string, string> = {
+        OWNER: "Андрей Владимиров",
+        SENIOR_ADMIN: "Светлана Петрова",
+        ADMIN: "Алексей Морозов",
+      };
       return {
-        id: isOwner ? "e2e-test-owner" : "e2e-test-admin",
-        email: isOwner ? "owner@test.com" : "admin@test.com",
-        role: isOwner ? "OWNER" : "ADMIN",
+        id: isOwner ? "demo-owner" : `demo-${role.toLowerCase()}`,
+        email: isOwner ? "owner@demo.local" : "admin@demo.local",
+        role,
         branchId: isOwner ? null : (branchIdFromCookie || "branch_central"),
-        displayName: isOwner ? "Test Owner (E2E)" : "Test Admin (E2E)",
+        displayName: displayNameFromCookie ?? defaultNames[role] ?? "Демо-пользователь",
       };
     } catch {
       // fall through to real auth

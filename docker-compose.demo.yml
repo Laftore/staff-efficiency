@@ -1,0 +1,26 @@
+# Локальная PostgreSQL для демо-режима StaffEfficiency (ВКР / скриншоты)
+#
+# Запуск:  docker compose -f docker-compose.demo.yml up -d
+# Остановка: docker compose -f docker-compose.demo.yml down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: staff-efficiency-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: staff
+      POSTGRES_PASSWORD: staff_demo_2026
+      POSTGRES_DB: staff_efficiency
+    volumes:
+      - staff_efficiency_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staff -d staff_efficiency"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  staff_efficiency_pgdata:
