@@ -37,9 +37,11 @@ for (const key of keys) {
   if (key.includes("DATABASE")) {
     try {
       const url = new URL(value);
+      const pass = decodeURIComponent(url.password);
       console.log(`✅ ${key}`);
       console.log(`     user: ${url.username}`);
       console.log(`     host: ${url.hostname}:${url.port}`);
+      console.log(`     password length: ${pass.length} (сверьте с /api/health на Vercel)`);
     } catch {
       console.log(`❌ ${key} — невалидный URL`);
     }

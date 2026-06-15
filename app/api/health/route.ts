@@ -7,11 +7,13 @@ function parseDbEnv(name: "DATABASE_URL" | "DIRECT_URL") {
   if (!raw) return { set: false as const };
   try {
     const url = new URL(raw);
+    const password = decodeURIComponent(url.password);
     return {
       set: true as const,
       user: url.username,
       host: url.hostname,
       port: url.port,
+      passwordLength: password.length,
       hasPgbouncer: url.searchParams.has("pgbouncer"),
       hasQuotes: raw.startsWith('"') || raw.startsWith("'"),
     };
@@ -59,7 +61,11 @@ export async function GET() {
     issues.push("DATABASE_URL: добавьте ?pgbouncer=true");
   }
   if (dbError?.includes("Authentication failed")) {
-    issues.push("Пароль в DATABASE_URL на Vercel не совпадает с Supabase Database password");
+    issues.push(
+      "Пароль в DATABASE_URL на Vercel ≠ Database password в Supabase. Сбросьте пароль и вставьте новые строки из Connect.",
+    );
+  } else if (!dbOk && isDatabaseConfigured()) {
+    issues.push(dbError ?? "Не удалось подключиться к Postgres");
   }
 
   return NextResponse.json({
@@ -67,6 +73,7 @@ export async function GET() {
     supabase: isSupabaseConfigured(),
     database: isDatabaseConfigured(),
     dbConnection: dbOk,
+    dbError,
     profileCount,
     expectedRef,
     env: {
