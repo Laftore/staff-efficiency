@@ -21,6 +21,7 @@
     "demo:users": "npx tsx scripts/setup-demo-users.ts",
     "deploy:setup": "node scripts/setup-vercel-supabase.mjs",
     "deploy:check": "node scripts/check-supabase-env.mjs",
+    "deploy:print-env": "node scripts/print-vercel-env.mjs",
     "test:bonus": "node --import tsx --test lib/kpi/bonus.test.ts",
     "test": "vitest",
     "test:watch": "vitest --watch",
