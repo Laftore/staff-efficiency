@@ -8,7 +8,7 @@
  * Запуск: node scripts/setup-vercel-supabase.mjs
  */
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import dotenv from "dotenv";
 
@@ -48,9 +48,34 @@ function run(cmd) {
   execSync(cmd, { cwd: root, stdio: "inherit", env: { ...process.env } });
 }
 
+const prismaClientEngine = resolve(
+  root,
+  "node_modules/.prisma/client/query_engine-windows.dll.node",
+);
+
+function tryPrismaGenerate() {
+  if (existsSync(prismaClientEngine)) {
+    console.log("\n⏭ prisma generate пропущен — клиент уже собран.\n");
+    return;
+  }
+
+  try {
+    run("npx prisma generate");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("EPERM") && existsSync(prismaClientEngine)) {
+      console.warn(
+        "\n⚠️ prisma generate: файл занят (остановите npm run dev). Используем существующий клиент.\n",
+      );
+      return;
+    }
+    throw error;
+  }
+}
+
 console.log("\n🚀 Настройка Supabase Cloud для StaffEfficiency\n");
 
-run("npx prisma generate");
+tryPrismaGenerate();
 run("npx prisma migrate deploy");
 run("npm run db:seed");
 run("npm run demo:users");
